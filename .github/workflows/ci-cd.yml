@@ -26,68 +26,89 @@ jobs:
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.GHCR_REGISTRY }}
+          registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # -----------------------------
+      # ORDER PRODUCER
+      # -----------------------------
       - name: Build & push order-producer image
         uses: docker/build-push-action@v6
         with:
           context: ./producer
           push: true
           tags: |
-            ${{ env.GHCR_REGISTRY }}/${{ github.repository }}/order-producer:latest
+            ghcr.io/${{ github.repository_owner,, }}/kafka-enterprise-orders/order-producer:latest
 
+      # -----------------------------
+      # FRAUD SERVICE
+      # -----------------------------
       - name: Build & push fraud-service image
         uses: docker/build-push-action@v6
         with:
           context: ./consumers/fraud-service
           push: true
           tags: |
-            ${{ env.GHCR_REGISTRY }}/${{ github.repository }}/fraud-service:latest
+            ghcr.io/${{ github.repository_owner,, }}/kafka-enterprise-orders/fraud-service:latest
 
+      # -----------------------------
+      # PAYMENT SERVICE
+      # -----------------------------
       - name: Build & push payment-service image
         uses: docker/build-push-action@v6
         with:
           context: ./consumers/payment-service
           push: true
           tags: |
-            ${{ env.GHCR_REGISTRY }}/${{ github.repository }}/payment-service:latest
+            ghcr.io/${{ github.repository_owner,, }}/kafka-enterprise-orders/payment-service:latest
 
+      # -----------------------------
+      # ANALYTICS SERVICE
+      # -----------------------------
       - name: Build & push analytics-service image
         uses: docker/build-push-action@v6
         with:
           context: ./consumers/analytics-service
           push: true
           tags: |
-            ${{ env.GHCR_REGISTRY }}/${{ github.repository }}/analytics-service:latest
+            ghcr.io/${{ github.repository_owner,, }}/kafka-enterprise-orders/analytics-service:latest
 
+      # -----------------------------
+      # EXPORT IMAGE TAGS
+      # -----------------------------
       - name: Export image tags
         id: images
         run: |
-          echo "producer=${{ env.GHCR_REGISTRY }}/${{ github.repository }}/order-producer:latest" >> $GITHUB_OUTPUT
-          echo "fraud=${{ env.GHCR_REGISTRY }}/${{ github.repository }}/fraud-service:latest" >> $GITHUB_OUTPUT
-          echo "payment=${{ env.GHCR_REGISTRY }}/${{ github.repository }}/payment-service:latest" >> $GITHUB_OUTPUT
-          echo "analytics=${{ env.GHCR_REGISTRY }}/${{ github.repository }}/analytics-service:latest" >> $GITHUB_OUTPUT
+          echo "producer=ghcr.io/${{ github.repository_owner,, }}/kafka-enterprise-orders/order-producer:latest" >> $GITHUB_OUTPUT
+          echo "fraud=ghcr.io/${{ github.repository_owner,, }}/kafka-enterprise-orders/fraud-service:latest" >> $GITHUB_OUTPUT
+          echo "payment=ghcr.io/${{ github.repository_owner,, }}/kafka-enterprise-orders/payment-service:latest" >> $GITHUB_OUTPUT
+          echo "analytics=ghcr.io/${{ github.repository_owner,, }}/kafka-enterprise-orders/analytics-service:latest" >> $GITHUB_OUTPUT
 
   terraform:
     needs: build-and-push
     runs-on: ubuntu-latest
 
     permissions:
-      id-token: write
       contents: read
 
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials (OIDC)
+      # -----------------------------
+      # AWS ACCESS KEY + SECRET KEY
+      # -----------------------------
+      - name: Configure AWS credentials (access key)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+      # -----------------------------
+      # TERRAFORM
+      # -----------------------------
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
