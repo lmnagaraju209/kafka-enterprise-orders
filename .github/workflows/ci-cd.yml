@@ -23,6 +23,10 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
+      - name: Convert repo owner to lowercase
+        id: vars
+        run: echo "OWNER_LC=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -30,60 +34,45 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # -----------------------------
-      # ORDER PRODUCER
-      # -----------------------------
-      - name: Build & push order-producer image
+      - name: Build & push order-producer
         uses: docker/build-push-action@v6
         with:
           context: ./producer
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner,, }}/kafka-enterprise-orders/order-producer:latest
+            ghcr.io/${{ steps.vars.outputs.OWNER_LC }}/kafka-enterprise-orders/order-producer:latest
 
-      # -----------------------------
-      # FRAUD SERVICE
-      # -----------------------------
-      - name: Build & push fraud-service image
+      - name: Build & push fraud-service
         uses: docker/build-push-action@v6
         with:
           context: ./consumers/fraud-service
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner,, }}/kafka-enterprise-orders/fraud-service:latest
+            ghcr.io/${{ steps.vars.outputs.OWNER_LC }}/kafka-enterprise-orders/fraud-service:latest
 
-      # -----------------------------
-      # PAYMENT SERVICE
-      # -----------------------------
-      - name: Build & push payment-service image
+      - name: Build & push payment-service
         uses: docker/build-push-action@v6
         with:
           context: ./consumers/payment-service
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner,, }}/kafka-enterprise-orders/payment-service:latest
+            ghcr.io/${{ steps.vars.outputs.OWNER_LC }}/kafka-enterprise-orders/payment-service:latest
 
-      # -----------------------------
-      # ANALYTICS SERVICE
-      # -----------------------------
-      - name: Build & push analytics-service image
+      - name: Build & push analytics-service
         uses: docker/build-push-action@v6
         with:
           context: ./consumers/analytics-service
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner,, }}/kafka-enterprise-orders/analytics-service:latest
+            ghcr.io/${{ steps.vars.outputs.OWNER_LC }}/kafka-enterprise-orders/analytics-service:latest
 
-      # -----------------------------
-      # EXPORT IMAGE TAGS
-      # -----------------------------
       - name: Export image tags
         id: images
         run: |
-          echo "producer=ghcr.io/${{ github.repository_owner,, }}/kafka-enterprise-orders/order-producer:latest" >> $GITHUB_OUTPUT
-          echo "fraud=ghcr.io/${{ github.repository_owner,, }}/kafka-enterprise-orders/fraud-service:latest" >> $GITHUB_OUTPUT
-          echo "payment=ghcr.io/${{ github.repository_owner,, }}/kafka-enterprise-orders/payment-service:latest" >> $GITHUB_OUTPUT
-          echo "analytics=ghcr.io/${{ github.repository_owner,, }}/kafka-enterprise-orders/analytics-service:latest" >> $GITHUB_OUTPUT
+          echo "producer=ghcr.io/${{ steps.vars.outputs.OWNER_LC }}/kafka-enterprise-orders/order-producer:latest" >> $GITHUB_OUTPUT
+          echo "fraud=ghcr.io/${{ steps.vars.outputs.OWNER_LC }}/kafka-enterprise-orders/fraud-service:latest" >> $GITHUB_OUTPUT
+          echo "payment=ghcr.io/${{ steps.vars.outputs.OWNER_LC }}/kafka-enterprise-orders/payment-service:latest" >> $GITHUB_OUTPUT
+          echo "analytics=ghcr.io/${{ steps.vars.outputs.OWNER_LC }}/kafka-enterprise-orders/analytics-service:latest" >> $GITHUB_OUTPUT
 
   terraform:
     needs: build-and-push
@@ -96,9 +85,6 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      # -----------------------------
-      # AWS ACCESS KEY + SECRET KEY
-      # -----------------------------
       - name: Configure AWS credentials (access key)
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -106,9 +92,6 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # -----------------------------
-      # TERRAFORM
-      # -----------------------------
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
