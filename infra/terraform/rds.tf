@@ -3,7 +3,10 @@
 ############################################
 resource "aws_db_subnet_group" "orders" {
   name       = "${var.project_name}-db-subnets"
-  subnet_ids = [aws_subnet.public_a.id, aws_subnet.public_b.id]
+  subnet_ids = [
+    aws_subnet.public_a.id,
+    aws_subnet.public_b.id
+  ]
 
   tags = {
     Name = "${var.project_name}-db-subnets"
@@ -38,30 +41,28 @@ resource "aws_security_group" "rds" {
 }
 
 ############################################
-# RDS INSTANCE (POSTGRES)
+# RDS INSTANCE
 ############################################
 resource "aws_db_instance" "orders_db" {
-  identifier             = "${var.project_name}-db"
-  allocated_storage      = 20
-  max_allocated_storage  = 100
-  storage_type           = "gp3"
+  identifier              = "${var.project_name}-db"
+  engine                  = "postgres"
+  engine_version          = "16"
+  instance_class          = "db.t3.micro"
 
-  engine                 = "postgres"
-  engine_version         = "16"                # FIXED VERSION
-  instance_class         = "db.t3.micro"
+  db_subnet_group_name    = aws_db_subnet_group.orders.name
+  vpc_security_group_ids  = [aws_security_group.rds.id]
 
-  db_subnet_group_name   = aws_db_subnet_group.orders.name
-  vpc_security_group_ids = [aws_security_group.rds.id]
+  allocated_storage       = 20
+  skip_final_snapshot     = true
 
-  db_name                = "ordersdb"
-  username               = "orders_user"
-  password               = var.rds_password   # from secrets
+  username                = var.rds_username
+  password                = var.rds_password
 
-  skip_final_snapshot    = true
-
-  publicly_accessible    = true               # EDU use only
+  publicly_accessible     = false
+  apply_immediately       = false
 
   tags = {
     Name = "${var.project_name}-db"
   }
 }
+
