@@ -19,6 +19,13 @@ jobs:
       contents: read
       packages: write
 
+    # >>> JOB OUTPUTS so terraform job can read image tags
+    outputs:
+      producer: ${{ steps.images.outputs.producer }}
+      fraud: ${{ steps.images.outputs.fraud }}
+      payment: ${{ steps.images.outputs.payment }}
+      analytics: ${{ steps.images.outputs.analytics }}
+
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -34,6 +41,9 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # -----------------------------
+      # ORDER PRODUCER
+      # -----------------------------
       - name: Build & push order-producer
         uses: docker/build-push-action@v6
         with:
@@ -42,6 +52,9 @@ jobs:
           tags: |
             ghcr.io/${{ steps.vars.outputs.OWNER_LC }}/kafka-enterprise-orders/order-producer:latest
 
+      # -----------------------------
+      # FRAUD SERVICE
+      # -----------------------------
       - name: Build & push fraud-service
         uses: docker/build-push-action@v6
         with:
@@ -50,6 +63,9 @@ jobs:
           tags: |
             ghcr.io/${{ steps.vars.outputs.OWNER_LC }}/kafka-enterprise-orders/fraud-service:latest
 
+      # -----------------------------
+      # PAYMENT SERVICE
+      # -----------------------------
       - name: Build & push payment-service
         uses: docker/build-push-action@v6
         with:
@@ -58,6 +74,9 @@ jobs:
           tags: |
             ghcr.io/${{ steps.vars.outputs.OWNER_LC }}/kafka-enterprise-orders/payment-service:latest
 
+      # -----------------------------
+      # ANALYTICS SERVICE
+      # -----------------------------
       - name: Build & push analytics-service
         uses: docker/build-push-action@v6
         with:
@@ -66,6 +85,9 @@ jobs:
           tags: |
             ghcr.io/${{ steps.vars.outputs.OWNER_LC }}/kafka-enterprise-orders/analytics-service:latest
 
+      # -----------------------------
+      # EXPORT IMAGE TAGS
+      # -----------------------------
       - name: Export image tags
         id: images
         run: |
