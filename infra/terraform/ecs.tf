@@ -17,9 +17,9 @@ resource "aws_iam_role" "ecs_task_execution" {
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Effect    = "Allow"
+      Effect = "Allow"
       Principal = { Service = "ecs-tasks.amazonaws.com" }
-      Action    = "sts:AssumeRole"
+      Action = "sts:AssumeRole"
     }]
   })
 }
@@ -29,69 +29,56 @@ resource "aws_iam_role_policy_attachment" "ecs_task_execution_policy" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
-# Task role (for future: SSM, Secrets Manager, etc.)
 resource "aws_iam_role" "ecs_task_role" {
   name = "${var.project_name}-ecs-task-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Effect    = "Allow"
+      Effect = "Allow"
       Principal = { Service = "ecs-tasks.amazonaws.com" }
-      Action    = "sts:AssumeRole"
+      Action = "sts:AssumeRole"
     }]
   })
 }
 
-# Example: ORDER PRODUCER task definition (Fargate)
+# -----------------------------------------------------------
+# REMOVE LOG GROUP CREATION — Already Exists
+# -----------------------------------------------------------
+data "aws_cloudwatch_log_group" "producer" {
+  name = "/ecs/${var.project_name}-producer"
+}
+
 resource "aws_ecs_task_definition" "order_producer" {
   family                   = "${var.project_name}-producer"
-  requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
-  cpu                      = 256
-  memory                   = 512
+  cpu                      = var.ecs_cpu
+  memory                   = var.ecs_memory
   execution_role_arn       = aws_iam_role.ecs_task_execution.arn
   task_role_arn            = aws_iam_role.ecs_task_role.arn
+  requires_compatibilities = ["FARGATE"]
 
   container_definitions = jsonencode([
     {
-      name      = "order-producer"
-      image     = var.container_image_producer
-      essential = true
-      environment = [
-        {
-          name  = "KAFKA_BOOTSTRAP"
-          value = var.confluent_bootstrap_servers
-        },
-        {
-          name  = "CONFLUENT_API_KEY"
-          value = var.confluent_api_key
-        },
-        {
-          name  = "CONFLUENT_API_SECRET"
-          value = var.confluent_api_secret
-        }
-      ]
+      name  = "order-producer"
+      image = var.container_image_producer
+
       logConfiguration = {
         logDriver = "awslogs"
         options = {
-          awslogs-group         = "/ecs/${var.project_name}-producer"
+          awslogs-group         = data.aws_cloudwatch_log_group.producer.name
           awslogs-region        = var.aws_region
           awslogs-stream-prefix = "ecs"
         }
       }
+
+      environment = [
+        { name = "BOOTSTRAP_SERVERS", value = var.confluent_bootstrap_servers },
+        { name = "API_KEY", value = var.confluent_api_key },
+        { name = "API_SECRET", value = var.confluent_api_secret }
+      ]
     }
   ])
-
-  runtime_platform {
-    operating_system_family = "LINUX"
-    cpu_architecture        = "X86_64"
-  }
-}
-
-resource "aws_cloudwatch_log_group" "producer" {
-  name              = "/ecs/${var.project_name}-producer"
-  retention_in_days = 7
 }
 
 resource "aws_ecs_service" "order_producer" {
@@ -106,8 +93,5 @@ resource "aws_ecs_service" "order_producer" {
     security_groups = [aws_security_group.ecs_tasks.id]
     assign_public_ip = true
   }
-
-  lifecycle {
-    ignore_changes = [task_definition]
-  }
 }
+

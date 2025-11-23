@@ -1,15 +1,10 @@
-############################################
-# TERRAFORM SETUP + REMOTE BACKEND
-############################################
 terraform {
   required_version = ">= 1.5.0"
 
-  # Remote backend in S3 (for CI/CD + team use)
   backend "s3" {
-    bucket         = "kafka-enterprise-orders-tfstate"
-    key            = "terraform.tfstate"
-    region         = "us-east-2"
-    encrypt        = true
+    bucket = "kafka-enterprise-orders-tfstate"
+    key    = "terraform.tfstate"
+    region = "us-east-2"
   }
 
   required_providers {
@@ -20,9 +15,6 @@ terraform {
   }
 }
 
-############################################
-# AWS PROVIDER
-############################################
 provider "aws" {
   region = var.aws_region
 }
