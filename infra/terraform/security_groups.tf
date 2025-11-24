@@ -1,10 +1,18 @@
-# -----------------------------------------------------------
-# SECURITY GROUP FOR ECS TASKS
-# -----------------------------------------------------------
+########################################
+# ECS TASKS SECURITY GROUP
+########################################
+
 resource "aws_security_group" "ecs_tasks" {
   name        = "${var.project_name}-ecs-sg"
-  description = "Allow ECS tasks outbound access"
+  description = "Security group for ECS tasks"
   vpc_id      = aws_vpc.main.id
+
+  ingress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 
   egress {
     from_port   = 0
@@ -12,21 +20,17 @@ resource "aws_security_group" "ecs_tasks" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
-  tags = {
-    Name = "${var.project_name}-ecs-sg"
-  }
 }
 
-# -----------------------------------------------------------
-# SECURITY GROUP FOR RDS
-# -----------------------------------------------------------
+########################################
+# RDS Security Group
+########################################
+
 resource "aws_security_group" "rds" {
   name        = "${var.project_name}-rds-sg"
-  description = "Allow Postgres access from ECS"
+  description = "Allow DB access from ECS"
   vpc_id      = aws_vpc.main.id
 
-  # Allow ECS tasks to connect to Postgres
   ingress {
     from_port       = 5432
     to_port         = 5432
@@ -34,16 +38,10 @@ resource "aws_security_group" "rds" {
     security_groups = [aws_security_group.ecs_tasks.id]
   }
 
-  # Allow DB to reach out if needed
   egress {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
-  tags = {
-    Name = "${var.project_name}-rds-sg"
-  }
 }
-
