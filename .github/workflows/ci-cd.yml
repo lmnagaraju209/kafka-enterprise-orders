@@ -2,8 +2,8 @@ name: CI-CD
 
 on:
   push:
-    branches: [ "main" ]
-  pull_request:
+    branches:
+      - main
 
 env:
   AWS_REGION: us-east-2
@@ -19,84 +19,52 @@ jobs:
       contents: read
       packages: write
 
-    outputs:
-      producer: ${{ steps.images.outputs.producer }}
-      fraud: ${{ steps.images.outputs.fraud }}
-      payment: ${{ steps.images.outputs.payment }}
-      analytics: ${{ steps.images.outputs.analytics }}
-
     steps:
-      - name: Checkout repo
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Convert repo owner to lowercase
-        id: vars
-        run: echo "OWNER_LC=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
-
-      - name: Log in to GitHub Container Registry
+      - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # PRODUCER
-      - name: Build & push order-producer
-        uses: docker/build-push-action@v6
-        with:
-          context: ./producer
-          push: true
-          tags: |
-            ghcr.io/${{ steps.vars.outputs.OWNER_LC }}/kafka-enterprise-orders/order-producer:latest
+      - name: Build & push images
+        run: |
+          docker build -t ghcr.io/${{ github.actor }}/kafka-enterprise-orders/order-producer:latest ./producer
+          docker push ghcr.io/${{ github.actor }}/kafka-enterprise-orders/order-producer:latest
 
-      # FRAUD
-      - name: Build & push fraud-service
-        uses: docker/build-push-action@v6
-        with:
-          context: ./consumers/fraud-service
-          push: true
-          tags: |
-            ghcr.io/${{ steps.vars.outputs.OWNER_LC }}/kafka-enterprise-orders/fraud-service:latest
+          docker build -t ghcr.io/${{ github.actor }}/kafka-enterprise-orders/fraud-service:latest ./consumers/fraud-service
+          docker push ghcr.io/${{ github.actor }}/kafka-enterprise-orders/fraud-service:latest
 
-      # PAYMENT
-      - name: Build & push payment-service
-        uses: docker/build-push-action@v6
-        with:
-          context: ./consumers/payment-service
-          push: true
-          tags: |
-            ghcr.io/${{ steps.vars.outputs.OWNER_LC }}/kafka-enterprise-orders/payment-service:latest
+          docker build -t ghcr.io/${{ github.actor }}/kafka-enterprise-orders/payment-service:latest ./consumers/payment-service
+          docker push ghcr.io/${{ github.actor }}/kafka-enterprise-orders/payment-service:latest
 
-      # ANALYTICS
-      - name: Build & push analytics-service
-        uses: docker/build-push-action@v6
-        with:
-          context: ./consumers/analytics-service
-          push: true
-          tags: |
-            ghcr.io/${{ steps.vars.outputs.OWNER_LC }}/kafka-enterprise-orders/analytics-service:latest
+          docker build -t ghcr.io/${{ github.actor }}/kafka-enterprise-orders/analytics-service:latest ./consumers/analytics-service
+          docker push ghcr.io/${{ github.actor }}/kafka-enterprise-orders/analytics-service:latest
 
-      # EXPORT IMAGE TAGS
-      - name: Export image tags
+      - name: Set output image names
         id: images
         run: |
-          echo "producer=ghcr.io/${{ steps.vars.outputs.OWNER_LC }}/kafka-enterprise-orders/order-producer:latest" >> $GITHUB_OUTPUT
-          echo "fraud=ghcr.io/${{ steps.vars.outputs.OWNER_LC }}/kafka-enterprise-orders/fraud-service:latest" >> $GITHUB_OUTPUT
-          echo "payment=ghcr.io/${{ steps.vars.outputs.OWNER_LC }}/kafka-enterprise-orders/payment-service:latest" >> $GITHUB_OUTPUT
-          echo "analytics=ghcr.io/${{ steps.vars.outputs.OWNER_LC }}/kafka-enterprise-orders/analytics-service:latest" >> $GITHUB_OUTPUT
+          echo "producer=ghcr.io/${{ github.actor }}/kafka-enterprise-orders/order-producer:latest" >> $GITHUB_OUTPUT
+          echo "fraud=ghcr.io/${{ github.actor }}/kafka-enterprise-orders/fraud-service:latest" >> $GITHUB_OUTPUT
+          echo "payment=ghcr.io/${{ github.actor }}/kafka-enterprise-orders/payment-service:latest" >> $GITHUB_OUTPUT
+          echo "analytics=ghcr.io/${{ github.actor }}/kafka-enterprise-orders/analytics-service:latest" >> $GITHUB_OUTPUT
 
-  terraform:
-    needs: build-and-push
+  terraform-deploy:
     runs-on: ubuntu-latest
+    needs: build-and-push
 
     permissions:
       contents: read
+      id-token: write
 
     steps:
-      - name: Checkout repo
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
+      - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -105,8 +73,6 @@ jobs:
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.9.5
 
       - name: Terraform Init
         working-directory: ${{ env.TF_WORKING_DIR }}
@@ -114,9 +80,9 @@ jobs:
 
       - name: Terraform Plan
         working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform plan -out=tfplan
         env:
           TF_VAR_aws_region: ${{ env.AWS_REGION }}
-          TF_VAR_project_name: ${{ env.PROJECT_NAME }}
           TF_VAR_container_image_producer: ${{ needs.build-and-push.outputs.producer }}
           TF_VAR_container_image_fraud: ${{ needs.build-and-push.outputs.fraud }}
           TF_VAR_container_image_payment: ${{ needs.build-and-push.outputs.payment }}
@@ -125,14 +91,12 @@ jobs:
           TF_VAR_confluent_api_key: ${{ secrets.CONFLUENT_API_KEY }}
           TF_VAR_confluent_api_secret: ${{ secrets.CONFLUENT_API_SECRET }}
           TF_VAR_rds_password: ${{ secrets.RDS_PASSWORD }}
-        run: terraform plan -out=tfplan
 
       - name: Terraform Apply
-        if: github.ref == 'refs/heads/main'
         working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform apply -auto-approve tfplan
         env:
           TF_VAR_aws_region: ${{ env.AWS_REGION }}
-          TF_VAR_project_name: ${{ env.PROJECT_NAME }}
           TF_VAR_container_image_producer: ${{ needs.build-and-push.outputs.producer }}
           TF_VAR_container_image_fraud: ${{ needs.build-and-push.outputs.fraud }}
           TF_VAR_container_image_payment: ${{ needs.build-and-push.outputs.payment }}
@@ -141,4 +105,4 @@ jobs:
           TF_VAR_confluent_api_key: ${{ secrets.CONFLUENT_API_KEY }}
           TF_VAR_confluent_api_secret: ${{ secrets.CONFLUENT_API_SECRET }}
           TF_VAR_rds_password: ${{ secrets.RDS_PASSWORD }}
-        run: terraform apply -auto-approve tfplan
+
