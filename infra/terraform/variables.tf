@@ -1,3 +1,7 @@
+########################################
+# General
+########################################
+
 variable "aws_region" {
   type = string
 }
@@ -6,6 +10,10 @@ variable "project_name" {
   type    = string
   default = "kafka-enterprise-orders"
 }
+
+########################################
+# Container Images (CI/CD passes)
+########################################
 
 variable "container_image_producer" {
   type = string
@@ -23,18 +31,26 @@ variable "container_image_analytics" {
   type = string
 }
 
-# Confluent
+########################################
+# Confluent Cloud
+########################################
+
 variable "confluent_bootstrap_servers" {
   type = string
 }
+
 variable "confluent_api_key" {
   type = string
 }
+
 variable "confluent_api_secret" {
   type = string
 }
 
-# Kafka topics
+########################################
+# Kafka Topics
+########################################
+
 variable "orders_topic" {
   type    = string
   default = "orders"
@@ -55,25 +71,39 @@ variable "order_analytics_topic" {
   default = "order-analytics"
 }
 
+########################################
 # Couchbase
+########################################
+
 variable "couchbase_host" {
   type    = string
   default = "couchbase"
 }
+
 variable "couchbase_bucket" {
   type    = string
   default = "order_analytics"
 }
+
 variable "couchbase_username" {
   type    = string
   default = "Administrator"
 }
+
 variable "couchbase_password" {
   type    = string
   default = "password"
 }
 
-# RDS
+########################################
+# RDS CREDENTIALS
+########################################
+
+variable "rds_username" {
+  type    = string
+  default = "orders_user"
+}
+
 variable "rds_password" {
   type      = string
   sensitive = true
