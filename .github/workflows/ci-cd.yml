@@ -19,7 +19,6 @@ jobs:
       contents: read
       packages: write
 
-    # >>> JOB OUTPUTS so terraform job can read image tags
     outputs:
       producer: ${{ steps.images.outputs.producer }}
       fraud: ${{ steps.images.outputs.fraud }}
@@ -41,9 +40,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # -----------------------------
-      # ORDER PRODUCER
-      # -----------------------------
+      # PRODUCER
       - name: Build & push order-producer
         uses: docker/build-push-action@v6
         with:
@@ -52,9 +49,7 @@ jobs:
           tags: |
             ghcr.io/${{ steps.vars.outputs.OWNER_LC }}/kafka-enterprise-orders/order-producer:latest
 
-      # -----------------------------
-      # FRAUD SERVICE
-      # -----------------------------
+      # FRAUD
       - name: Build & push fraud-service
         uses: docker/build-push-action@v6
         with:
@@ -63,9 +58,7 @@ jobs:
           tags: |
             ghcr.io/${{ steps.vars.outputs.OWNER_LC }}/kafka-enterprise-orders/fraud-service:latest
 
-      # -----------------------------
-      # PAYMENT SERVICE
-      # -----------------------------
+      # PAYMENT
       - name: Build & push payment-service
         uses: docker/build-push-action@v6
         with:
@@ -74,9 +67,7 @@ jobs:
           tags: |
             ghcr.io/${{ steps.vars.outputs.OWNER_LC }}/kafka-enterprise-orders/payment-service:latest
 
-      # -----------------------------
-      # ANALYTICS SERVICE
-      # -----------------------------
+      # ANALYTICS
       - name: Build & push analytics-service
         uses: docker/build-push-action@v6
         with:
@@ -85,9 +76,7 @@ jobs:
           tags: |
             ghcr.io/${{ steps.vars.outputs.OWNER_LC }}/kafka-enterprise-orders/analytics-service:latest
 
-      # -----------------------------
       # EXPORT IMAGE TAGS
-      # -----------------------------
       - name: Export image tags
         id: images
         run: |
@@ -107,7 +96,7 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials (access key)
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -127,6 +116,7 @@ jobs:
         working-directory: ${{ env.TF_WORKING_DIR }}
         env:
           TF_VAR_aws_region: ${{ env.AWS_REGION }}
+          TF_VAR_project_name: ${{ env.PROJECT_NAME }}
           TF_VAR_container_image_producer: ${{ needs.build-and-push.outputs.producer }}
           TF_VAR_container_image_fraud: ${{ needs.build-and-push.outputs.fraud }}
           TF_VAR_container_image_payment: ${{ needs.build-and-push.outputs.payment }}
@@ -142,6 +132,7 @@ jobs:
         working-directory: ${{ env.TF_WORKING_DIR }}
         env:
           TF_VAR_aws_region: ${{ env.AWS_REGION }}
+          TF_VAR_project_name: ${{ env.PROJECT_NAME }}
           TF_VAR_container_image_producer: ${{ needs.build-and-push.outputs.producer }}
           TF_VAR_container_image_fraud: ${{ needs.build-and-push.outputs.fraud }}
           TF_VAR_container_image_payment: ${{ needs.build-and-push.outputs.payment }}
