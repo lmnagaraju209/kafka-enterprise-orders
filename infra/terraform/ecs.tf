@@ -16,7 +16,35 @@ resource "aws_ecs_cluster" "app_cluster" {
 }
 
 ########################################
-# IAM ROLES FOR ECS TASKS
+# ECS Security Group (FIXED HERE)
+########################################
+
+resource "aws_security_group" "ecs_tasks" {
+  name        = "${var.project_name}-ecs-sg"
+  description = "Security group for ECS tasks"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "${var.project_name}-ecs-sg"
+  }
+}
+
+########################################
+# IAM ROLES
 ########################################
 
 resource "aws_iam_role" "ecs_task_execution" {
@@ -51,7 +79,7 @@ resource "aws_iam_role" "ecs_task_role" {
 }
 
 ########################################
-# CLOUDWATCH LOG GROUPS (FIXED)
+# CLOUDWATCH LOG GROUPS
 ########################################
 
 resource "aws_cloudwatch_log_group" "producer" {
@@ -75,7 +103,7 @@ resource "aws_cloudwatch_log_group" "analytics" {
 }
 
 ########################################
-# PRODUCER TASK DEFINITION
+# TASK DEFINITIONS
 ########################################
 
 resource "aws_ecs_task_definition" "order_producer" {
@@ -92,14 +120,12 @@ resource "aws_ecs_task_definition" "order_producer" {
       name      = "order-producer"
       image     = var.container_image_producer
       essential = true
-
       environment = [
         { name = "ORDERS_TOPIC", value = var.orders_topic },
         { name = "KAFKA_BOOTSTRAP", value = var.confluent_bootstrap_servers },
         { name = "KAFKA_API_KEY", value = var.confluent_api_key },
         { name = "KAFKA_API_SECRET", value = var.confluent_api_secret }
       ]
-
       logConfiguration = {
         logDriver = "awslogs"
         options = {
@@ -111,10 +137,6 @@ resource "aws_ecs_task_definition" "order_producer" {
     }
   ])
 }
-
-########################################
-# FRAUD SERVICE TASK DEF
-########################################
 
 resource "aws_ecs_task_definition" "fraud_service" {
   family                   = "${var.project_name}-fraud"
@@ -130,7 +152,6 @@ resource "aws_ecs_task_definition" "fraud_service" {
       name      = "fraud-service"
       image     = var.container_image_fraud
       essential = true
-
       environment = [
         { name = "ORDERS_TOPIC", value = var.orders_topic },
         { name = "FRAUD_ALERTS_TOPIC", value = var.fraud_alerts_topic },
@@ -138,7 +159,6 @@ resource "aws_ecs_task_definition" "fraud_service" {
         { name = "KAFKA_API_KEY", value = var.confluent_api_key },
         { name = "KAFKA_API_SECRET", value = var.confluent_api_secret }
       ]
-
       logConfiguration = {
         logDriver = "awslogs"
         options = {
@@ -150,10 +170,6 @@ resource "aws_ecs_task_definition" "fraud_service" {
     }
   ])
 }
-
-########################################
-# PAYMENT SERVICE TASK DEF
-########################################
 
 resource "aws_ecs_task_definition" "payment_service" {
   family                   = "${var.project_name}-payment"
@@ -169,7 +185,6 @@ resource "aws_ecs_task_definition" "payment_service" {
       name      = "payment-service"
       image     = var.container_image_payment
       essential = true
-
       environment = [
         { name = "PAYMENTS_TOPIC", value = var.payments_topic },
         { name = "ORDERS_TOPIC", value = var.orders_topic },
@@ -177,7 +192,6 @@ resource "aws_ecs_task_definition" "payment_service" {
         { name = "KAFKA_API_KEY", value = var.confluent_api_key },
         { name = "KAFKA_API_SECRET", value = var.confluent_api_secret }
       ]
-
       logConfiguration = {
         logDriver = "awslogs"
         options = {
@@ -189,10 +203,6 @@ resource "aws_ecs_task_definition" "payment_service" {
     }
   ])
 }
-
-########################################
-# ANALYTICS SERVICE TASK DEF
-########################################
 
 resource "aws_ecs_task_definition" "analytics_service" {
   family                   = "${var.project_name}-analytics"
@@ -208,7 +218,6 @@ resource "aws_ecs_task_definition" "analytics_service" {
       name      = "analytics-service"
       image     = var.container_image_analytics
       essential = true
-
       environment = [
         { name = "ORDER_ANALYTICS_TOPIC", value = var.order_analytics_topic },
         { name = "COUCHBASE_HOST", value = var.couchbase_host },
@@ -216,7 +225,6 @@ resource "aws_ecs_task_definition" "analytics_service" {
         { name = "COUCHBASE_USERNAME", value = var.couchbase_username },
         { name = "COUCHBASE_PASSWORD", value = var.couchbase_password }
       ]
-
       logConfiguration = {
         logDriver = "awslogs"
         options = {
@@ -230,7 +238,7 @@ resource "aws_ecs_task_definition" "analytics_service" {
 }
 
 ########################################
-# ECS SERVICES
+# ECS Services (USING FIXED SG)
 ########################################
 
 resource "aws_ecs_service" "order_producer" {
@@ -242,8 +250,7 @@ resource "aws_ecs_service" "order_producer" {
 
   network_configuration {
     subnets         = [var.public_subnet_a, var.public_subnet_b]
-    security_groups = [var.ecs_tasks_sg]
+    security_groups = [aws_security_group.ecs_tasks.id]
     assign_public_ip = true
   }
 }
-
