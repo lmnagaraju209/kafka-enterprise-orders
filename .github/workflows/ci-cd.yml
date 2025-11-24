@@ -12,8 +12,16 @@ env:
   PROJECT_NAME: kafka-enterprise-orders
 
 jobs:
+
   build-and-push:
     runs-on: ubuntu-latest
+
+    # JOB OUTPUTS (IMPORTANT)
+    outputs:
+      producer: ${{ steps.build.outputs.producer }}
+      fraud: ${{ steps.build.outputs.fraud }}
+      payment: ${{ steps.build.outputs.payment }}
+      analytics: ${{ steps.build.outputs.analytics }}
 
     permissions:
       contents: read
@@ -30,16 +38,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build Docker images (lowercase username)
+      - name: Build Docker images
         id: build
         run: |
           USER_LOWER=$(echo "${{ github.actor }}" | tr '[:upper:]' '[:lower:]')
 
+          echo "Using lowercase GHCR namespace: $USER_LOWER"
+
+          # Build all images
           docker build -t ghcr.io/$USER_LOWER/${{ env.PROJECT_NAME }}/order-producer:latest ./producer
           docker build -t ghcr.io/$USER_LOWER/${{ env.PROJECT_NAME }}/fraud-service:latest ./consumers/fraud-service
           docker build -t ghcr.io/$USER_LOWER/${{ env.PROJECT_NAME }}/payment-service:latest ./consumers/payment-service
           docker build -t ghcr.io/$USER_LOWER/${{ env.PROJECT_NAME }}/analytics-service:latest ./consumers/analytics-service
 
+          # Export step outputs
           echo "producer=ghcr.io/$USER_LOWER/${{ env.PROJECT_NAME }}/order-producer:latest" >> $GITHUB_OUTPUT
           echo "fraud=ghcr.io/$USER_LOWER/${{ env.PROJECT_NAME }}/fraud-service:latest" >> $GITHUB_OUTPUT
           echo "payment=ghcr.io/$USER_LOWER/${{ env.PROJECT_NAME }}/payment-service:latest" >> $GITHUB_OUTPUT
