@@ -30,27 +30,29 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build & push images
+      - name: Build Docker images (lowercase username)
+        id: build
         run: |
-          docker build -t ghcr.io/${{ github.actor }}/kafka-enterprise-orders/order-producer:latest ./producer
-          docker push ghcr.io/${{ github.actor }}/kafka-enterprise-orders/order-producer:latest
+          USER_LOWER=$(echo "${{ github.actor }}" | tr '[:upper:]' '[:lower:]')
 
-          docker build -t ghcr.io/${{ github.actor }}/kafka-enterprise-orders/fraud-service:latest ./consumers/fraud-service
-          docker push ghcr.io/${{ github.actor }}/kafka-enterprise-orders/fraud-service:latest
+          docker build -t ghcr.io/$USER_LOWER/${{ env.PROJECT_NAME }}/order-producer:latest ./producer
+          docker build -t ghcr.io/$USER_LOWER/${{ env.PROJECT_NAME }}/fraud-service:latest ./consumers/fraud-service
+          docker build -t ghcr.io/$USER_LOWER/${{ env.PROJECT_NAME }}/payment-service:latest ./consumers/payment-service
+          docker build -t ghcr.io/$USER_LOWER/${{ env.PROJECT_NAME }}/analytics-service:latest ./consumers/analytics-service
 
-          docker build -t ghcr.io/${{ github.actor }}/kafka-enterprise-orders/payment-service:latest ./consumers/payment-service
-          docker push ghcr.io/${{ github.actor }}/kafka-enterprise-orders/payment-service:latest
+          echo "producer=ghcr.io/$USER_LOWER/${{ env.PROJECT_NAME }}/order-producer:latest" >> $GITHUB_OUTPUT
+          echo "fraud=ghcr.io/$USER_LOWER/${{ env.PROJECT_NAME }}/fraud-service:latest" >> $GITHUB_OUTPUT
+          echo "payment=ghcr.io/$USER_LOWER/${{ env.PROJECT_NAME }}/payment-service:latest" >> $GITHUB_OUTPUT
+          echo "analytics=ghcr.io/$USER_LOWER/${{ env.PROJECT_NAME }}/analytics-service:latest" >> $GITHUB_OUTPUT
 
-          docker build -t ghcr.io/${{ github.actor }}/kafka-enterprise-orders/analytics-service:latest ./consumers/analytics-service
-          docker push ghcr.io/${{ github.actor }}/kafka-enterprise-orders/analytics-service:latest
-
-      - name: Set output image names
-        id: images
+      - name: Push Docker images
         run: |
-          echo "producer=ghcr.io/${{ github.actor }}/kafka-enterprise-orders/order-producer:latest" >> $GITHUB_OUTPUT
-          echo "fraud=ghcr.io/${{ github.actor }}/kafka-enterprise-orders/fraud-service:latest" >> $GITHUB_OUTPUT
-          echo "payment=ghcr.io/${{ github.actor }}/kafka-enterprise-orders/payment-service:latest" >> $GITHUB_OUTPUT
-          echo "analytics=ghcr.io/${{ github.actor }}/kafka-enterprise-orders/analytics-service:latest" >> $GITHUB_OUTPUT
+          USER_LOWER=$(echo "${{ github.actor }}" | tr '[:upper:]' '[:lower:]')
+
+          docker push ghcr.io/$USER_LOWER/${{ env.PROJECT_NAME }}/order-producer:latest
+          docker push ghcr.io/$USER_LOWER/${{ env.PROJECT_NAME }}/fraud-service:latest
+          docker push ghcr.io/$USER_LOWER/${{ env.PROJECT_NAME }}/payment-service:latest
+          docker push ghcr.io/$USER_LOWER/${{ env.PROJECT_NAME }}/analytics-service:latest
 
   terraform-deploy:
     runs-on: ubuntu-latest
@@ -105,4 +107,3 @@ jobs:
           TF_VAR_confluent_api_key: ${{ secrets.CONFLUENT_API_KEY }}
           TF_VAR_confluent_api_secret: ${{ secrets.CONFLUENT_API_SECRET }}
           TF_VAR_rds_password: ${{ secrets.RDS_PASSWORD }}
-
