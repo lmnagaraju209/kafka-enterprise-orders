@@ -1,3 +1,7 @@
+###############################
+# General
+###############################
+
 variable "aws_region" {
   type        = string
   description = "AWS region"
@@ -9,7 +13,9 @@ variable "project_name" {
   default     = "kafka-enterprise-orders"
 }
 
-# ---------- Container Images (from CI/CD) -----------
+###############################
+# Docker Images from CI/CD
+###############################
 
 variable "container_image_producer" {
   type        = string
@@ -31,7 +37,9 @@ variable "container_image_analytics" {
   description = "Docker image for analytics service"
 }
 
-# ---------- Confluent Cloud -----------
+###############################
+# Confluent Cloud
+###############################
 
 variable "confluent_bootstrap_servers" {
   type        = string
@@ -48,68 +56,74 @@ variable "confluent_api_secret" {
   description = "Confluent Cloud API Secret"
 }
 
-# ---------- Kafka Topics -----------
+###############################
+# Kafka Topics
+###############################
 
 variable "orders_topic" {
-  type        = string
-  default     = "orders"
+  type    = string
+  default = "orders"
 }
 
 variable "fraud_alerts_topic" {
-  type        = string
-  default     = "fraud-alerts"
+  type    = string
+  default = "fraud-alerts"
 }
 
 variable "payments_topic" {
-  type        = string
-  default     = "payments"
+  type    = string
+  default = "payments"
 }
 
 variable "order_analytics_topic" {
-  type        = string
-  default     = "order-analytics"
+  type    = string
+  default = "order-analytics"
 }
 
-# ---------- Couchbase -----------
+###############################
+# Couchbase (only analytics service)
+###############################
 
 variable "couchbase_host" {
-  type        = string
-  default     = "couchbase"
+  type    = string
+  default = "couchbase"
 }
 
 variable "couchbase_bucket" {
-  type        = string
-  default     = "order_analytics"
+  type    = string
+  default = "order_analytics"
 }
 
 variable "couchbase_username" {
-  type        = string
-  default     = "Administrator"
+  type    = string
+  default = "Administrator"
 }
 
 variable "couchbase_password" {
-  type        = string
-  default     = "password"
+  type    = string
+  default = "password"
 }
 
-# ---------- Networking (CI/CD passes subnet IDs) ----------
+###############################
+# Networking (from Terraform)
+###############################
 
 variable "public_subnet_a" {
-  type        = string
+  type = string
 }
 
 variable "public_subnet_b" {
-  type        = string
+  type = string
 }
 
-variable "ecs_tasks_sg" {
-  type        = string
-}
+# NOTE: ecs_tasks_sg REMOVED
+# Because we use aws_security_group.ecs_tasks.id directly
 
-# ---------- RDS Password (from GitHub Secret) -----------
+###############################
+# RDS
+###############################
 
 variable "rds_password" {
-  type        = string
-  sensitive   = true
+  type      = string
+  sensitive = true
 }
-
