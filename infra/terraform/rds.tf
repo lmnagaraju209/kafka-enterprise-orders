@@ -4,7 +4,7 @@
 
 resource "aws_db_subnet_group" "main" {
   name       = "${var.project_name}-db-subnet-group"
-  subnet_ids = var.private_subnets  # MUST be private
+  subnet_ids = local.private_subnets   # FIXED HERE
 
   tags = {
     Name = "${var.project_name}-db-subnet-group"
@@ -26,13 +26,10 @@ resource "aws_db_instance" "orders_db" {
 
   instance_class          = "db.t3.micro"
 
-  # Important — RDS should NOT be public
   publicly_accessible     = false
 
-  # Sanitize password to remove control characters from GitHub Actions
   username                = var.rds_username
   password                = replace(var.rds_password, "/[[:cntrl:]]/", "")
-
   db_name                 = replace(var.project_name, "/[^a-zA-Z0-9]/", "")
 
   vpc_security_group_ids  = [aws_security_group.rds.id]
@@ -41,7 +38,7 @@ resource "aws_db_instance" "orders_db" {
   skip_final_snapshot     = true
   deletion_protection     = false
 
-  backup_retention_period = 0   # Disable automatic backups
+  backup_retention_period = 0
 
   tags = {
     Name = "${var.project_name}-db"
