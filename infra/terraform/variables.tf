@@ -13,18 +13,7 @@ variable "project_name" {
 }
 
 ########################################
-# Networking
-########################################
-
-# Used by ECS service and RDS subnet group
-variable "private_subnets" {
-  type = list(string)
-  # Example of passing from root module or TF_VAR_private_subnets in CI/CD
-  # default = []
-}
-
-########################################
-# Container Images (CI/CD passes)
+# Container Images (passed from CI/CD)
 ########################################
 
 variable "container_image_producer" {
@@ -44,7 +33,7 @@ variable "container_image_analytics" {
 }
 
 ########################################
-# Confluent Cloud
+# Confluent Cloud (passed from CI/CD)
 ########################################
 
 variable "confluent_bootstrap_servers" {
