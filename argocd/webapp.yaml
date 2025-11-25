@@ -1,0 +1,21 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: webapp
+  namespace: argocd
+spec:
+  project: default
+
+  source:
+    repoURL: "https://github.com/Aisalkyn85/kafka-enterprise-orders"
+    path: k8s/charts/webapp
+    targetRevision: main
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: webapp
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

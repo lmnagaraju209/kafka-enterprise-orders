@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webapp
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: webapp
+  template:
+    metadata:
+      labels:
+        app: webapp
+    spec:
+      containers:
+        - name: backend
+          image: {{ .Values.backendImage }}
+          env:
+            - name: COUCHBASE_HOST
+              value: {{ .Values.couchbase.host }}
+            - name: COUCHBASE_BUCKET
+              value: {{ .Values.couchbase.bucket }}
+            - name: COUCHBASE_USERNAME
+              value: {{ .Values.couchbase.username }}
+            - name: COUCHBASE_PASSWORD
+              value: {{ .Values.couchbase.password }}
+          ports:
+            - containerPort: 8000
+
+        - name: frontend
+          image: {{ .Values.frontendImage }}
+          ports:
+            - containerPort: 80
