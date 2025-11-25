@@ -3,12 +3,24 @@
 ########################################
 
 variable "aws_region" {
-  type = string
+  type    = string
+  default = "us-east-2"
 }
 
 variable "project_name" {
   type    = string
   default = "kafka-enterprise-orders"
+}
+
+########################################
+# Networking
+########################################
+
+# Used by ECS service and RDS subnet group
+variable "private_subnets" {
+  type = list(string)
+  # Example of passing from root module or TF_VAR_private_subnets in CI/CD
+  # default = []
 }
 
 ########################################
@@ -40,11 +52,13 @@ variable "confluent_bootstrap_servers" {
 }
 
 variable "confluent_api_key" {
-  type = string
+  type      = string
+  sensitive = true
 }
 
 variable "confluent_api_secret" {
-  type = string
+  type      = string
+  sensitive = true
 }
 
 ########################################
@@ -91,8 +105,9 @@ variable "couchbase_username" {
 }
 
 variable "couchbase_password" {
-  type    = string
-  default = "password"
+  type      = string
+  default   = "password"
+  sensitive = true
 }
 
 ########################################
