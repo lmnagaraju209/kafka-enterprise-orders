@@ -9,6 +9,10 @@ resource "aws_ecs_cluster" "app_cluster" {
     name  = "containerInsights"
     value = "enabled"
   }
+
+  tags = {
+    Name = "${var.project_name}-cluster"
+  }
 }
 
 ########################################
@@ -36,11 +40,13 @@ resource "aws_cloudwatch_log_group" "analytics" {
 }
 
 ########################################
-# IAM ROLES (IDEMPOTENT FOR CI/CD)
+# IAM ROLES (FOR ECS TASKS)
 ########################################
 
+# Execution role – used by ECS to pull images, write logs, etc.
 resource "aws_iam_role" "ecs_task_execution" {
-  name = "${var.project_name}-ecs-task-execution"
+  # use v2 suffix to avoid clash if old role exists
+  name = "${var.project_name}-ecs-task-execution-v2"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
@@ -50,13 +56,6 @@ resource "aws_iam_role" "ecs_task_execution" {
       Action    = "sts:AssumeRole"
     }]
   })
-
-  lifecycle {
-    ignore_changes = [
-      name,
-      assume_role_policy
-    ]
-  }
 }
 
 resource "aws_iam_role_policy_attachment" "ecs_task_execution_policy" {
@@ -64,8 +63,9 @@ resource "aws_iam_role_policy_attachment" "ecs_task_execution_policy" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
+# Task role – what your container code runs as
 resource "aws_iam_role" "ecs_task_role" {
-  name = "${var.project_name}-ecs-task-role"
+  name = "${var.project_name}-ecs-task-role-v2"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
@@ -75,23 +75,16 @@ resource "aws_iam_role" "ecs_task_role" {
       Action    = "sts:AssumeRole"
     }]
   })
-
-  lifecycle {
-    ignore_changes = [
-      name,
-      assume_role_policy
-    ]
-  }
 }
 
-# Add required permissions for your microservices
+# Extra permissions for tasks (CloudWatch etc.)
 resource "aws_iam_role_policy_attachment" "ecs_task_extra" {
   role       = aws_iam_role.ecs_task_role.name
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchFullAccess"
 }
 
 ########################################
-# TASK DEFINITION
+# TASK DEFINITION (ORDER PRODUCER)
 ########################################
 
 resource "aws_ecs_task_definition" "order_producer" {
@@ -103,40 +96,48 @@ resource "aws_ecs_task_definition" "order_producer" {
   execution_role_arn       = aws_iam_role.ecs_task_execution.arn
   task_role_arn            = aws_iam_role.ecs_task_role.arn
 
-  container_definitions = jsonencode([{
-    name      = "order-producer"
-    image     = var.container_image_producer
-    essential = true
+  container_definitions = jsonencode([
+    {
+      name      = "order-producer"
+      image     = var.container_image_producer
+      essential = true
 
-    portMappings = [{
-      containerPort = 8080
-      protocol      = "tcp"
-    }]
+      portMappings = [
+        {
+          containerPort = 8080
+          protocol      = "tcp"
+        }
+      ]
 
-    environment = [
-      { name = "ORDERS_TOPIC", value = var.orders_topic },
-      { name = "KAFKA_BOOTSTRAP", value = var.confluent_bootstrap_servers },
-      { name = "KAFKA_API_KEY", value = var.confluent_api_key },
-      { name = "KAFKA_API_SECRET", value = var.confluent_api_secret }
-    ]
+      environment = [
+        { name = "ORDERS_TOPIC",         value = var.orders_topic },
+        { name = "KAFKA_BOOTSTRAP",      value = var.confluent_bootstrap_servers },
+        { name = "KAFKA_API_KEY",        value = var.confluent_api_key },
+        { name = "KAFKA_API_SECRET",     value = var.confluent_api_secret }
+      ]
 
-    logConfiguration = {
-      logDriver = "awslogs"
-      options = {
-        awslogs-group         = aws_cloudwatch_log_group.producer.name
-        awslogs-region        = var.aws_region
-        awslogs-stream-prefix = "producer"
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          awslogs-group         = aws_cloudwatch_log_group.producer.name
+          awslogs-region        = var.aws_region
+          awslogs-stream-prefix = "producer"
+        }
       }
     }
-  }])
+  ])
 
   depends_on = [
     aws_cloudwatch_log_group.producer
   ]
+
+  tags = {
+    Name = "${var.project_name}-producer-task"
+  }
 }
 
 ########################################
-# ECS SERVICE
+# ECS SERVICE (ORDER PRODUCER)
 ########################################
 
 resource "aws_ecs_service" "order_producer" {
@@ -147,12 +148,16 @@ resource "aws_ecs_service" "order_producer" {
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets         = var.private_subnets
-    security_groups = [aws_security_group.ecs_tasks.id]
+    subnets          = local.private_subnets   # IMPORTANT: local, not var
+    security_groups  = [aws_security_group.ecs_tasks.id]
     assign_public_ip = false
   }
 
   depends_on = [
     aws_ecs_task_definition.order_producer
   ]
+
+  tags = {
+    Name = "${var.project_name}-producer-service"
+  }
 }
