@@ -18,6 +18,10 @@ resource "aws_vpc" "main" {
 
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.main.id
+
+  tags = {
+    Name = "${var.project_name}-igw"
+  }
 }
 
 ########################################
@@ -71,11 +75,15 @@ resource "aws_subnet" "private_b" {
 }
 
 ########################################
-# NAT GATEWAY + Elastic IP
+# NAT GATEWAY (for private subnet internet access)
 ########################################
 
 resource "aws_eip" "nat_eip" {
   vpc = true
+
+  tags = {
+    Name = "${var.project_name}-nat-eip"
+  }
 }
 
 resource "aws_nat_gateway" "nat" {
@@ -85,7 +93,7 @@ resource "aws_nat_gateway" "nat" {
   depends_on = [aws_internet_gateway.igw]
 
   tags = {
-    Name = "${var.project_name}-nat"
+    Name = "${var.project_name}-nat-gw"
   }
 }
 
@@ -101,8 +109,13 @@ resource "aws_route_table" "public" {
     cidr_block = "0.0.0.0/0"
     gateway_id = aws_internet_gateway.igw.id
   }
+
+  tags = {
+    Name = "${var.project_name}-public-rt"
+  }
 }
 
+# Public subnet associations
 resource "aws_route_table_association" "public_a" {
   route_table_id = aws_route_table.public.id
   subnet_id      = aws_subnet.public_a.id
@@ -113,16 +126,21 @@ resource "aws_route_table_association" "public_b" {
   subnet_id      = aws_subnet.public_b.id
 }
 
-# Private route table → NAT gateway
+# Private route table → NAT Gateway
 resource "aws_route_table" "private" {
   vpc_id = aws_vpc.main.id
 
   route {
-    cidr_block = "0.0.0.0/0"
+    cidr_block     = "0.0.0.0/0"
     nat_gateway_id = aws_nat_gateway.nat.id
+  }
+
+  tags = {
+    Name = "${var.project_name}-private-rt"
   }
 }
 
+# Private subnet associations
 resource "aws_route_table_association" "private_a" {
   route_table_id = aws_route_table.private.id
   subnet_id      = aws_subnet.private_a.id
@@ -131,4 +149,15 @@ resource "aws_route_table_association" "private_a" {
 resource "aws_route_table_association" "private_b" {
   route_table_id = aws_route_table.private.id
   subnet_id      = aws_subnet.private_b.id
+}
+
+########################################
+# LOCAL: PRIVATE SUBNETS LIST (for ECS & RDS)
+########################################
+
+locals {
+  private_subnets = [
+    aws_subnet.private_a.id,
+    aws_subnet.private_b.id
+  ]
 }
