@@ -16,15 +16,16 @@ jobs:
   build-and-push:
     runs-on: ubuntu-latest
 
-    # JOB OUTPUTS (IMPORTANT)
     outputs:
       producer: ${{ steps.build.outputs.producer }}
       fraud: ${{ steps.build.outputs.fraud }}
       payment: ${{ steps.build.outputs.payment }}
       analytics: ${{ steps.build.outputs.analytics }}
+      web_backend: ${{ steps.build.outputs.web_backend }}
+      web_frontend: ${{ steps.build.outputs.web_frontend }}
 
     permissions:
-      contents: read
+      contents: write
       packages: write
 
     steps:
@@ -42,29 +43,60 @@ jobs:
         id: build
         run: |
           USER_LOWER=$(echo "${{ github.actor }}" | tr '[:upper:]' '[:lower:]')
+          REPO="ghcr.io/$USER_LOWER/${{ env.PROJECT_NAME }}"
 
-          echo "Using lowercase GHCR namespace: $USER_LOWER"
+          echo "Using GHCR repo: $REPO"
 
-          # Build all images
-          docker build -t ghcr.io/$USER_LOWER/${{ env.PROJECT_NAME }}/order-producer:latest ./producer
-          docker build -t ghcr.io/$USER_LOWER/${{ env.PROJECT_NAME }}/fraud-service:latest ./consumers/fraud-service
-          docker build -t ghcr.io/$USER_LOWER/${{ env.PROJECT_NAME }}/payment-service:latest ./consumers/payment-service
-          docker build -t ghcr.io/$USER_LOWER/${{ env.PROJECT_NAME }}/analytics-service:latest ./consumers/analytics-service
+          # Kafka Microservices
+          docker build -t $REPO/order-producer:latest ./producer
+          docker build -t $REPO/fraud-service:latest ./consumers/fraud-service
+          docker build -t $REPO/payment-service:latest ./consumers/payment-service
+          docker build -t $REPO/analytics-service:latest ./consumers/analytics-service
 
-          # Export step outputs
-          echo "producer=ghcr.io/$USER_LOWER/${{ env.PROJECT_NAME }}/order-producer:latest" >> $GITHUB_OUTPUT
-          echo "fraud=ghcr.io/$USER_LOWER/${{ env.PROJECT_NAME }}/fraud-service:latest" >> $GITHUB_OUTPUT
-          echo "payment=ghcr.io/$USER_LOWER/${{ env.PROJECT_NAME }}/payment-service:latest" >> $GITHUB_OUTPUT
-          echo "analytics=ghcr.io/$USER_LOWER/${{ env.PROJECT_NAME }}/analytics-service:latest" >> $GITHUB_OUTPUT
+          # Web Backend
+          docker build -t $REPO/web-backend:latest ./web/backend
+
+          # Web Frontend
+          docker build -t $REPO/web-frontend:latest ./web/frontend
+
+          echo "producer=$REPO/order-producer:latest" >> $GITHUB_OUTPUT
+          echo "fraud=$REPO/fraud-service:latest" >> $GITHUB_OUTPUT
+          echo "payment=$REPO/payment-service:latest" >> $GITHUB_OUTPUT
+          echo "analytics=$REPO/analytics-service:latest" >> $GITHUB_OUTPUT
+          echo "web_backend=$REPO/web-backend:latest" >> $GITHUB_OUTPUT
+          echo "web_frontend=$REPO/web-frontend:latest" >> $GITHUB_OUTPUT
 
       - name: Push Docker images
         run: |
           USER_LOWER=$(echo "${{ github.actor }}" | tr '[:upper:]' '[:lower:]')
+          REPO="ghcr.io/$USER_LOWER/${{ env.PROJECT_NAME }}"
 
-          docker push ghcr.io/$USER_LOWER/${{ env.PROJECT_NAME }}/order-producer:latest
-          docker push ghcr.io/$USER_LOWER/${{ env.PROJECT_NAME }}/fraud-service:latest
-          docker push ghcr.io/$USER_LOWER/${{ env.PROJECT_NAME }}/payment-service:latest
-          docker push ghcr.io/$USER_LOWER/${{ env.PROJECT_NAME }}/analytics-service:latest
+          docker push $REPO/order-producer:latest
+          docker push $REPO/fraud-service:latest
+          docker push $REPO/payment-service:latest
+          docker push $REPO/analytics-service:latest
+          docker push $REPO/web-backend:latest
+          docker push $REPO/web-frontend:latest
+
+      - name: Update Helm Chart image tags
+        run: |
+          FRONT=${{ steps.build.outputs.web_frontend }}
+          BACK=${{ steps.build.outputs.web_backend }}
+
+          echo "Updating Helm values.yaml with:"
+          echo "Frontend: $FRONT"
+          echo "Backend: $BACK"
+
+          sed -i "s|frontendImage:.*|frontendImage: \"$FRONT\"|" k8s/charts/webapp/values.yaml
+          sed -i "s|backendImage:.*|backendImage: \"$BACK\"|" k8s/charts/webapp/values.yaml
+
+      - name: Commit updated chart
+        run: |
+          git config --global user.email "ci@github.com"
+          git config --global user.name "GitHub CI"
+          git add k8s/charts/webapp/values.yaml
+          git commit -m "Update webapp images from CI pipeline" || echo "No changes to commit"
+          git push
 
   terraform-deploy:
     runs-on: ubuntu-latest
