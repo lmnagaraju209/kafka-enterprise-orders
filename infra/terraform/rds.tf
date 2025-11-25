@@ -4,7 +4,7 @@
 
 resource "aws_db_subnet_group" "main" {
   name       = "${var.project_name}-db-subnet-group"
-  subnet_ids = local.private_subnets   # FIXED HERE
+  subnet_ids = local.private_subnets
 
   tags = {
     Name = "${var.project_name}-db-subnet-group"
@@ -22,7 +22,7 @@ resource "aws_db_instance" "orders_db" {
   storage_type            = "gp3"
 
   engine                  = "postgres"
-  engine_version          = "15.3"
+  engine_version          = "15"   # ✅ FIXED: let AWS choose latest supported 15.x
 
   instance_class          = "db.t3.micro"
 
