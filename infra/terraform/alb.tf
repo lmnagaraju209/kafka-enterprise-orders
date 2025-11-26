@@ -1,5 +1,5 @@
 ##############################################
-# USE EXISTING ALB (DATA SOURCE)
+# EXISTING ALB
 ##############################################
 
 data "aws_lb" "webapp_alb" {
@@ -7,7 +7,7 @@ data "aws_lb" "webapp_alb" {
 }
 
 ##############################################
-# TARGET GROUP (still created by Terraform)
+# TARGET GROUP
 ##############################################
 
 resource "aws_lb_target_group" "webapp_tg" {
@@ -16,18 +16,10 @@ resource "aws_lb_target_group" "webapp_tg" {
   protocol    = "HTTP"
   target_type = "ip"
   vpc_id      = var.existing_vpc_id
-
-  health_check {
-    path                = "/"
-    interval            = 30
-    timeout             = 5
-    healthy_threshold   = 2
-    unhealthy_threshold = 2
-  }
 }
 
 ##############################################
-# LISTENER (uses existing ALB)
+# LISTENER (use existing ALB)
 ##############################################
 
 resource "aws_lb_listener" "webapp_listener" {
