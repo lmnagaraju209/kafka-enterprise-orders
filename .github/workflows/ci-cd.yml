@@ -29,8 +29,15 @@ jobs:
       packages: write
 
     steps:
+
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Prepare lowercase namespace
+        id: prep
+        run: |
+          NS=$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')
+          echo "namespace=$NS" >> $GITHUB_OUTPUT
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -42,43 +49,46 @@ jobs:
       - name: Build & Push Images
         id: build
         run: |
+          NS="${{ steps.prep.outputs.namespace }}"
+          REPO="kafka-enterprise-orders"
+
+          echo "Using lowercase namespace: $NS"
+
           # Producer
-          docker build -t $GHCR_REGISTRY/${{ github.repository }}/producer:latest producer
-          docker push $GHCR_REGISTRY/${{ github.repository }}/producer:latest
-          echo "producer=$GHCR_REGISTRY/${{ github.repository }}/producer:latest" >> $GITHUB_OUTPUT
+          docker build -t ghcr.io/$NS/$REPO-producer:latest producer
+          docker push ghcr.io/$NS/$REPO-producer:latest
+          echo "producer=ghcr.io/$NS/$REPO-producer:latest" >> $GITHUB_OUTPUT
 
           # Fraud
-          docker build -t $GHCR_REGISTRY/${{ github.repository }}/fraud-service:latest consumers/fraud-service
-          docker push $GHCR_REGISTRY/${{ github.repository }}/fraud-service:latest
-          echo "fraud=$GHCR_REGISTRY/${{ github.repository }}/fraud-service:latest" >> $GITHUB_OUTPUT
+          docker build -t ghcr.io/$NS/$REPO-fraud-service:latest consumers/fraud-service
+          docker push ghcr.io/$NS/$REPO-fraud-service:latest
+          echo "fraud=ghcr.io/$NS/$REPO-fraud-service:latest" >> $GITHUB_OUTPUT
 
           # Payment
-          docker build -t $GHCR_REGISTRY/${{ github.repository }}/payment-service:latest consumers/payment-service
-          docker push $GHCR_REGISTRY/${{ github.repository }}/payment-service:latest
-          echo "payment=$GHCR_REGISTRY/${{ github.repository }}/payment-service:latest" >> $GITHUB_OUTPUT
+          docker build -t ghcr.io/$NS/$REPO-payment-service:latest consumers/payment-service
+          docker push ghcr.io/$NS/$REPO-payment-service:latest
+          echo "payment=ghcr.io/$NS/$REPO-payment-service:latest" >> $GITHUB_OUTPUT
 
           # Analytics
-          docker build -t $GHCR_REGISTRY/${{ github.repository }}/analytics-service:latest consumers/analytics-service
-          docker push $GHCR_REGISTRY/${{ github.repository }}/analytics-service:latest
-          echo "analytics=$GHCR_REGISTRY/${{ github.repository }}/analytics-service:latest" >> $GITHUB_OUTPUT
+          docker build -t ghcr.io/$NS/$REPO-analytics-service:latest consumers/analytics-service
+          docker push ghcr.io/$NS/$REPO-analytics-service:latest
+          echo "analytics=ghcr.io/$NS/$REPO-analytics-service:latest" >> $GITHUB_OUTPUT
 
           # Web Backend
-          docker build -t $GHCR_REGISTRY/${{ github.repository }}/web-backend:latest web/backend
-          docker push $GHCR_REGISTRY/${{ github.repository }}/web-backend:latest
-          echo "web_backend=$GHCR_REGISTRY/${{ github.repository }}/web-backend:latest" >> $GITHUB_OUTPUT
+          docker build -t ghcr.io/$NS/$REPO-web-backend:latest web/backend
+          docker push ghcr.io/$NS/$REPO-web-backend:latest
+          echo "web_backend=ghcr.io/$NS/$REPO-web-backend:latest" >> $GITHUB_OUTPUT
 
           # Web Frontend
-          docker build -t $GHCR_REGISTRY/${{ github.repository }}/web-frontend:latest web/frontend
-          docker push $GHCR_REGISTRY/${{ github.repository }}/web-frontend:latest
-          echo "web_frontend=$GHCR_REGISTRY/${{ github.repository }}/web-frontend:latest" >> $GITHUB_OUTPUT
+          docker build -t ghcr.io/$NS/$REPO-web-frontend:latest web/frontend
+          docker push ghcr.io/$NS/$REPO-web-frontend:latest
+          echo "web_frontend=ghcr.io/$NS/$REPO-web-frontend:latest" >> $GITHUB_OUTPUT
+
 
 
   terraform-deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
-
-    permissions:
-      contents: read
 
     steps:
       - name: Checkout
@@ -114,32 +124,36 @@ jobs:
         run: terraform apply -auto-approve tfplan
 
 
+
   kubernetes-deploy:
     needs: terraform-deploy
     runs-on: ubuntu-latest
 
     steps:
+
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configure Kubeconfig
+      - name: Configure kubeconfig
         run: |
           aws eks update-kubeconfig \
             --name kafka-cluster \
             --region us-east-2
 
-      - name: Deploy via Helm
+      - name: Helm Deploy
         run: |
           helm upgrade --install webapp k8s/charts/webapp \
             --set backendImage=${{ needs.build-and-push.outputs.web_backend }} \
             --set frontendImage=${{ needs.build-and-push.outputs.web_frontend }}
 
-      - name: Wait for Backend Rollout
+      - name: Wait for Backend to Rollout
         run: kubectl rollout status deployment/webapp --timeout=180s
 
       - name: Backend Health Check
         run: |
-          BACKEND_URL="http://$(kubectl get svc webapp -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')/healthz"
+          LB=$(kubectl get svc webapp -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          BACKEND_URL="http://$LB/healthz"
+
           echo "Checking backend at $BACKEND_URL"
 
           for i in {1..10}; do
@@ -152,6 +166,5 @@ jobs:
             sleep 10
           done
 
-          echo "Backend failed health check!"
+          echo "Backend FAILED health check"
           exit 1
-
