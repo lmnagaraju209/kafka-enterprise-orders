@@ -13,7 +13,7 @@ resource "aws_vpc" "main" {
 }
 
 ##############################################
-# Internet Gateway
+# INTERNET GATEWAY
 ##############################################
 
 resource "aws_internet_gateway" "igw" {
@@ -32,8 +32,11 @@ resource "aws_subnet" "public" {
   count                   = 2
   vpc_id                  = aws_vpc.main.id
   cidr_block              = cidrsubnet("10.0.0.0/16", 4, count.index)
-  availability_zone       = data.aws_availability_zones.available.names[count.index]
   map_public_ip_on_launch = true
+
+  depends_on = [
+    aws_db_instance.orders_db   # <-- FIX so subnet deletes AFTER RDS
+  ]
 
   tags = {
     Name = "${var.project_name}-public-${count.index}"
@@ -45,10 +48,13 @@ resource "aws_subnet" "public" {
 ##############################################
 
 resource "aws_subnet" "private" {
-  count             = 2
-  vpc_id            = aws_vpc.main.id
-  cidr_block        = cidrsubnet("10.0.0.0/16", 4, count.index + 10)
-  availability_zone = data.aws_availability_zones.available.names[count.index]
+  count        = 2
+  vpc_id       = aws_vpc.main.id
+  cidr_block   = cidrsubnet("10.0.0.0/16", 4, count.index + 10)
+
+  depends_on = [
+    aws_db_instance.orders_db   # <-- FIX so subnet deletes AFTER RDS
+  ]
 
   tags = {
     Name = "${var.project_name}-private-${count.index}"
@@ -56,11 +62,11 @@ resource "aws_subnet" "private" {
 }
 
 ##############################################
-# NAT Gateway + EIP
+# NAT GATEWAY + EIP
 ##############################################
 
 resource "aws_eip" "nat_eip" {
-  domain = "vpc"   # FIXED (replaces deprecated vpc=true)
+  domain = "vpc"
 
   tags = {
     Name = "${var.project_name}-nat-eip"
@@ -77,7 +83,7 @@ resource "aws_nat_gateway" "nat" {
 }
 
 ##############################################
-# PUBLIC Route Table
+# PUBLIC ROUTE TABLE
 ##############################################
 
 resource "aws_route_table" "public_rt" {
@@ -100,7 +106,7 @@ resource "aws_route_table_association" "public_assoc" {
 }
 
 ##############################################
-# PRIVATE Route Table
+# PRIVATE ROUTE TABLE
 ##############################################
 
 resource "aws_route_table" "private_rt" {
@@ -121,9 +127,3 @@ resource "aws_route_table_association" "private_assoc" {
   subnet_id      = aws_subnet.private[count.index].id
   route_table_id = aws_route_table.private_rt.id
 }
-
-##############################################
-# DATA: Availability Zones
-##############################################
-
-data "aws_availability_zones" "available" {}
