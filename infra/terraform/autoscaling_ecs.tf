@@ -1,22 +1,62 @@
-resource "aws_appautoscaling_target" "ecs_service" {
-  max_capacity       = 5
+##############################################
+# ECS AUTOSCALING TARGET
+##############################################
+
+resource "aws_appautoscaling_target" "order_producer" {
+  max_capacity       = 4
   min_capacity       = 1
-  resource_id        = "service/${aws_ecs_cluster.app_cluster.name}/${aws_ecs_service.order_producer.name}"
+
+  # Must match the real ECS cluster & ECS service names
+  resource_id        = "service/${aws_ecs_cluster.main.name}/${aws_ecs_service.order_producer.name}"
+
   scalable_dimension = "ecs:service:DesiredCount"
   service_namespace  = "ecs"
 }
 
-resource "aws_appautoscaling_policy" "ecs_service_cpu" {
-  name               = "${var.project_name}-ecs-cpu-scaling"
-  policy_type        = "TargetTrackingScaling"
-  resource_id        = aws_appautoscaling_target.ecs_service.resource_id
-  scalable_dimension = aws_appautoscaling_target.ecs_service.scalable_dimension
-  service_namespace  = aws_appautoscaling_target.ecs_service.service_namespace
+##############################################
+# SCALE UP POLICY
+##############################################
 
-  target_tracking_scaling_policy_configuration {
-    predefined_metric_specification {
-      predefined_metric_type = "ECSServiceAverageCPUUtilization"
+resource "aws_appautoscaling_policy" "order_producer_scale_up" {
+  name               = "${var.project_name}-order-producer-scale-up"
+  policy_type        = "StepScaling"
+
+  resource_id        = aws_appautoscaling_target.order_producer.resource_id
+  scalable_dimension = aws_appautoscaling_target.order_producer.scalable_dimension
+  service_namespace  = aws_appautoscaling_target.order_producer.service_namespace
+
+  step_scaling_policy_configuration {
+    adjustment_type         = "ChangeInCapacity"
+    metric_aggregation_type = "Average"
+    cooldown                = 60
+
+    step_adjustment {
+      scaling_adjustment          = 1
+      metric_interval_lower_bound = 0
     }
-    target_value = 60
+  }
+}
+
+##############################################
+# SCALE DOWN POLICY
+##############################################
+
+resource "aws_appautoscaling_policy" "order_producer_scale_down" {
+  name               = "${var.project_name}-order-producer-scale-down"
+  policy_type        = "StepScaling"
+
+  resource_id        = aws_appautoscaling_target.order_producer.resource_id
+  scalable_dimension = aws_appautoscaling_target.order_producer.scalable_dimension
+  service_namespace  = aws_appautoscaling_target.order_producer.service_namespace
+
+  step_scaling_policy_configuration {
+    adjustment_type         = "ChangeInCapacity"
+    metric_aggregation_type = "Average"
+    cooldown                = 120
+
+    step_adjustment {
+      scaling_adjustment          = -1
+      metric_interval_upper_bound = 0
+    }
   }
 }
