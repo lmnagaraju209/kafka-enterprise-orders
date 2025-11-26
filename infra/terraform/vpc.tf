@@ -25,7 +25,7 @@ resource "aws_internet_gateway" "igw" {
 }
 
 ##############################################
-# PUBLIC SUBNETS
+# PUBLIC SUBNETS (NO depends_on)
 ##############################################
 
 resource "aws_subnet" "public" {
@@ -34,27 +34,19 @@ resource "aws_subnet" "public" {
   cidr_block              = cidrsubnet("10.0.0.0/16", 4, count.index)
   map_public_ip_on_launch = true
 
-  depends_on = [
-    aws_db_instance.orders_db   # <-- FIX so subnet deletes AFTER RDS
-  ]
-
   tags = {
     Name = "${var.project_name}-public-${count.index}"
   }
 }
 
 ##############################################
-# PRIVATE SUBNETS
+# PRIVATE SUBNETS (NO depends_on)
 ##############################################
 
 resource "aws_subnet" "private" {
-  count        = 2
-  vpc_id       = aws_vpc.main.id
-  cidr_block   = cidrsubnet("10.0.0.0/16", 4, count.index + 10)
-
-  depends_on = [
-    aws_db_instance.orders_db   # <-- FIX so subnet deletes AFTER RDS
-  ]
+  count      = 2
+  vpc_id     = aws_vpc.main.id
+  cidr_block = cidrsubnet("10.0.0.0/16", 4, count.index + 10)
 
   tags = {
     Name = "${var.project_name}-private-${count.index}"
