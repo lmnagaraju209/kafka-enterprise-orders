@@ -1,6 +1,6 @@
-#############################################
-# CloudWatch Alarm - ALB 5XX Errors
-#############################################
+########################################
+# CloudWatch Alarms for ALB
+########################################
 
 resource "aws_cloudwatch_metric_alarm" "alb_5xx" {
   alarm_name          = "${var.project_name}-alb-5xx"
@@ -11,27 +11,21 @@ resource "aws_cloudwatch_metric_alarm" "alb_5xx" {
   period              = 60
   statistic           = "Sum"
   threshold           = 5
-  treat_missing_data  = "notBreaching"
 
   dimensions = {
     LoadBalancer = aws_lb.webapp_alb.arn_suffix
   }
 }
 
-#############################################
-# CloudWatch Alarm - ALB Latency
-#############################################
-
 resource "aws_cloudwatch_metric_alarm" "alb_latency" {
   alarm_name          = "${var.project_name}-alb-latency"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 1
-  metric_name         = "TargetResponseTime"
+  metric_name         = "Latency"
   namespace           = "AWS/ApplicationELB"
   period              = 60
   statistic           = "Average"
-  threshold           = 2
-  treat_missing_data  = "notBreaching"
+  threshold           = 1
 
   dimensions = {
     LoadBalancer = aws_lb.webapp_alb.arn_suffix
