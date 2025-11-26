@@ -1,19 +1,25 @@
-##############################################
-# USE EXISTING VPC AND SUBNETS (DO NOT CREATE)
-##############################################
+############################################
+# REUSE EXISTING VPC + SUBNETS
+############################################
 
 data "aws_vpc" "main" {
   id = var.existing_vpc_id
 }
 
-# PRIVATE SUBNETS (for ECS + RDS)
 data "aws_subnet" "private" {
   for_each = toset(var.existing_private_subnet_ids)
   id       = each.value
 }
 
-# PUBLIC SUBNETS (for ALB)
 data "aws_subnet" "public" {
   for_each = toset(var.existing_public_subnet_ids)
   id       = each.value
+}
+
+############################################
+# Locals for Subnets
+############################################
+locals {
+  private_subnets = values(data.aws_subnet.private)[*].id
+  public_subnets  = values(data.aws_subnet.public)[*].id
 }
