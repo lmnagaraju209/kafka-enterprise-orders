@@ -2,10 +2,6 @@
 # WAF – Attach to existing ALB
 ###############################################
 
-data "aws_lb" "webapp_alb" {
-  arn = var.existing_alb_arn
-}
-
 resource "aws_wafv2_web_acl" "webapp" {
   name  = "${var.project_name}-waf"
   scope = "REGIONAL"
