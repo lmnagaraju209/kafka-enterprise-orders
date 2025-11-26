@@ -1,7 +1,7 @@
 output "ecs_cluster_name" {
-  value = aws_ecs_cluster.app_cluster.name
+  value = aws_ecs_cluster.main.name
 }
 
-output "rds_endpoint" {
-  value = aws_db_instance.orders_db.address
+output "ecs_cluster_arn" {
+  value = aws_ecs_cluster.main.arn
 }
