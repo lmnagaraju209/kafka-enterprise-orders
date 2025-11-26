@@ -1,14 +1,10 @@
 ##############################################
-# EXISTING ALB
+# USE EXISTING ALB
 ##############################################
 
 data "aws_lb" "webapp_alb" {
   name = "${var.project_name}-alb"
 }
-
-##############################################
-# TARGET GROUP
-##############################################
 
 resource "aws_lb_target_group" "webapp_tg" {
   name        = "${var.project_name}-tg"
@@ -17,10 +13,6 @@ resource "aws_lb_target_group" "webapp_tg" {
   target_type = "ip"
   vpc_id      = var.existing_vpc_id
 }
-
-##############################################
-# LISTENER (use existing ALB)
-##############################################
 
 resource "aws_lb_listener" "webapp_listener" {
   load_balancer_arn = data.aws_lb.webapp_alb.arn
