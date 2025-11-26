@@ -9,20 +9,18 @@ resource "aws_cloudwatch_metric_alarm" "rds_cpu_high" {
   metric_name         = "CPUUtilization"
   namespace           = "AWS/RDS"
   period              = 60
-  statistic           = "Average"     # REQUIRED FIX
+  statistic           = "Average"
   threshold           = 80
 
   alarm_description   = "RDS CPU above 80%"
-  alarm_actions       = []
-  ok_actions          = []
-  
+
   dimensions = {
-    DBInstanceIdentifier = aws_db_instance.main.id
+    DBInstanceIdentifier = aws_db_instance.orders_db.id
   }
 }
 
 ##############################################
-# RDS — CPU RECOVERY ALARM
+# RDS — CPU BACK TO NORMAL
 ##############################################
 
 resource "aws_cloudwatch_metric_alarm" "rds_cpu_normal" {
@@ -32,20 +30,18 @@ resource "aws_cloudwatch_metric_alarm" "rds_cpu_normal" {
   metric_name         = "CPUUtilization"
   namespace           = "AWS/RDS"
   period              = 60
-  statistic           = "Average"   # REQUIRED FIX
+  statistic           = "Average"
   threshold           = 60
 
-  alarm_description   = "RDS CPU returned to normal"
-  alarm_actions       = []
-  ok_actions          = []
-  
+  alarm_description   = "RDS CPU back to normal"
+
   dimensions = {
-    DBInstanceIdentifier = aws_db_instance.main.id
+    DBInstanceIdentifier = aws_db_instance.orders_db.id
   }
 }
 
 ##############################################
-# ECS SERVICE — HIGH CPU ALARM
+# ECS SERVICE — CPU HIGH
 ##############################################
 
 resource "aws_cloudwatch_metric_alarm" "ecs_cpu_high" {
@@ -55,7 +51,7 @@ resource "aws_cloudwatch_metric_alarm" "ecs_cpu_high" {
   metric_name         = "CPUUtilization"
   namespace           = "AWS/ECS"
   period              = 60
-  statistic           = "Average"   # FIX
+  statistic           = "Average"
   threshold           = 75
 
   dimensions = {
@@ -65,7 +61,7 @@ resource "aws_cloudwatch_metric_alarm" "ecs_cpu_high" {
 }
 
 ##############################################
-# ECS SERVICE — HIGH MEMORY ALARM
+# ECS SERVICE — MEMORY HIGH
 ##############################################
 
 resource "aws_cloudwatch_metric_alarm" "ecs_memory_high" {
@@ -75,7 +71,7 @@ resource "aws_cloudwatch_metric_alarm" "ecs_memory_high" {
   metric_name         = "MemoryUtilization"
   namespace           = "AWS/ECS"
   period              = 60
-  statistic           = "Average"   # FIX
+  statistic           = "Average"
   threshold           = 75
 
   dimensions = {
@@ -95,7 +91,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_5xx" {
   metric_name         = "HTTPCode_ELB_5XX_Count"
   namespace           = "AWS/ApplicationELB"
   period              = 60
-  statistic           = "Sum"     # FIX
+  statistic           = "Sum"
   threshold           = 10
 
   dimensions = {
@@ -104,17 +100,17 @@ resource "aws_cloudwatch_metric_alarm" "alb_5xx" {
 }
 
 ##############################################
-# ALB — HIGH LATENCY
+# ALB — LATENCY HIGH
 ##############################################
 
-resource "aws_cloudwatch_metric_alarm" "alb_high_latency" {
+resource "aws_cloudwatch_metric_alarm" "alb_latency" {
   alarm_name          = "${var.project_name}-alb-high-latency"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 1
   metric_name         = "TargetResponseTime"
   namespace           = "AWS/ApplicationELB"
   period              = 60
-  statistic           = "Average"   # FIX
+  statistic           = "Average"
   threshold           = 0.5
 
   dimensions = {
