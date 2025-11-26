@@ -1,5 +1,5 @@
 ##############################################
-# RDS SECURITY GROUP
+# RDS SECURITY GROUP (NO DEPENDENCY ON DB)
 ##############################################
 
 resource "aws_security_group" "rds" {
@@ -7,15 +7,13 @@ resource "aws_security_group" "rds" {
   description = "Security group for RDS"
   vpc_id      = aws_vpc.main.id
 
-  depends_on = [
-    aws_db_instance.orders_db   # <-- FIX prevents early delete
-  ]
+  # NO depends_on here — or cycle happens
 
   ingress {
     from_port   = 5432
     to_port     = 5432
     protocol    = "tcp"
-    cidr_blocks = ["10.0.0.0/16"]
+    cidr_blocks = ["10.0.0.0/16"]  # allow your cluster / ALB / backend
   }
 
   egress {
