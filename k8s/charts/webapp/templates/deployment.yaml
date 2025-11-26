@@ -13,8 +13,12 @@ spec:
         app: webapp
     spec:
       containers:
+        # ------------------------------------------------------
+        # BACKEND FASTAPI SERVICE (port 8000)
+        # ------------------------------------------------------
         - name: backend
           image: {{ .Values.backendImage }}
+
           env:
             - name: COUCHBASE_HOST
               value: {{ .Values.couchbase.host }}
@@ -24,10 +28,30 @@ spec:
               value: {{ .Values.couchbase.username }}
             - name: COUCHBASE_PASSWORD
               value: {{ .Values.couchbase.password }}
+
           ports:
             - containerPort: 8000
 
+          # Health checks for backend
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+
+        # ------------------------------------------------------
+        # FRONTEND REACT APP (port 80)
+        # ------------------------------------------------------
         - name: frontend
           image: {{ .Values.frontendImage }}
           ports:
             - containerPort: 80
+

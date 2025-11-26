@@ -8,14 +8,28 @@ from couchbase.options import ClusterTimeoutOptions
 
 app = FastAPI()
 
+# Couchbase env variables
 COUCHBASE_HOST = os.getenv("COUCHBASE_HOST")
 COUCHBASE_BUCKET = os.getenv("COUCHBASE_BUCKET")
 COUCHBASE_USER = os.getenv("COUCHBASE_USERNAME")
 COUCHBASE_PASS = os.getenv("COUCHBASE_PASSWORD")
 
+
+# ---------------------------------------------------------
+# Health check endpoint for Kubernetes / ECS / LoadBalancers
+# ---------------------------------------------------------
+@app.get("/healthz")
+def healthz():
+    return {"status": "ok"}
+
+
+# ---------------------------------------------------------
+# Analytics endpoint — read last 10 records from Couchbase
+# ---------------------------------------------------------
 @app.get("/api/analytics")
 def get_analytics():
     try:
+        # Connect to Couchbase
         cluster = Cluster(
             f"couchbase://{COUCHBASE_HOST}",
             ClusterOptions(
@@ -23,6 +37,7 @@ def get_analytics():
                 timeout_options=ClusterTimeoutOptions(kv_timeout=5)
             )
         )
+
         bucket = cluster.bucket(COUCHBASE_BUCKET)
         collection = bucket.default_collection()
 
@@ -32,7 +47,9 @@ def get_analytics():
         )
 
         orders = [row for row in result]
-        return {"status":"ok", "orders":orders}
+
+        return {"status": "ok", "orders": orders}
 
     except Exception as e:
         return {"error": str(e)}
+
