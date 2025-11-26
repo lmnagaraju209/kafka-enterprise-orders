@@ -1,3 +1,7 @@
+#############################################
+# WAF Web ACL
+#############################################
+
 resource "aws_wafv2_web_acl" "webapp" {
   name        = "webapp-waf"
   description = "WAF for webapp"
@@ -13,6 +17,7 @@ resource "aws_wafv2_web_acl" "webapp" {
     sampled_requests_enabled   = true
   }
 
+  # Rule 1 — Common AWS managed rules
   rule {
     name     = "AWS-AWSManagedRulesCommonRuleSet"
     priority = 1
@@ -35,6 +40,7 @@ resource "aws_wafv2_web_acl" "webapp" {
     }
   }
 
+  # Rule 2 — Known bad inputs
   rule {
     name     = "AWS-AWSManagedRulesKnownBadInputsRuleSet"
     priority = 2
@@ -58,8 +64,11 @@ resource "aws_wafv2_web_acl" "webapp" {
   }
 }
 
-# Associate WAF with ALB
+#############################################
+# Associate WAF + ALB
+#############################################
+
 resource "aws_wafv2_web_acl_association" "webapp" {
-  resource_arn = aws_lb.webapp_load_balancer.arn
+  resource_arn = aws_lb.webapp_alb.arn
   web_acl_arn  = aws_wafv2_web_acl.webapp.arn
 }
