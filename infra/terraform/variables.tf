@@ -3,33 +3,49 @@
 ########################################
 
 variable "aws_region" {
-  type    = string
-  default = "us-east-2"
+  description = "AWS region to deploy resources"
+  type        = string
+  default     = "us-east-2"
 }
 
 variable "project_name" {
-  type    = string
-  default = "kafka-enterprise-orders"
+  description = "Project name prefix for resources"
+  type        = string
+  default     = "kafka-enterprise-orders"
 }
 
 ########################################
-# Container Images (passed from CI/CD)
+# Container Images (from CI/CD)
 ########################################
 
 variable "container_image_producer" {
-  type = string
+  description = "Docker image for Producer"
+  type        = string
 }
 
 variable "container_image_fraud" {
-  type = string
+  description = "Docker image for Fraud Service"
+  type        = string
 }
 
 variable "container_image_payment" {
-  type = string
+  description = "Docker image for Payment Service"
+  type        = string
 }
 
 variable "container_image_analytics" {
-  type = string
+  description = "Docker image for Analytics Service"
+  type        = string
+}
+
+variable "web_backend_image" {
+  description = "Docker image for Web Backend (FastAPI)"
+  type        = string
+}
+
+variable "web_frontend_image" {
+  description = "Docker image for Web Frontend (React)"
+  type        = string
 }
 
 ########################################
@@ -37,17 +53,20 @@ variable "container_image_analytics" {
 ########################################
 
 variable "confluent_bootstrap_servers" {
-  type = string
+  description = "Confluent Cloud bootstrap servers"
+  type        = string
 }
 
 variable "confluent_api_key" {
-  type      = string
-  sensitive = true
+  description = "Confluent Cloud API key"
+  type        = string
+  sensitive   = true
 }
 
 variable "confluent_api_secret" {
-  type      = string
-  sensitive = true
+  description = "Confluent Cloud API secret"
+  type        = string
+  sensitive   = true
 }
 
 ########################################
@@ -55,60 +74,70 @@ variable "confluent_api_secret" {
 ########################################
 
 variable "orders_topic" {
-  type    = string
-  default = "orders"
+  description = "Orders topic name"
+  type        = string
+  default     = "orders"
 }
 
 variable "fraud_alerts_topic" {
-  type    = string
-  default = "fraud-alerts"
+  description = "Fraud alerts topic"
+  type        = string
+  default     = "fraud-alerts"
 }
 
 variable "payments_topic" {
-  type    = string
-  default = "payments"
+  description = "Payments topic"
+  type        = string
+  default     = "payments"
 }
 
 variable "order_analytics_topic" {
-  type    = string
-  default = "order-analytics"
+  description = "Order analytics topic"
+  type        = string
+  default     = "order-analytics"
 }
 
 ########################################
-# Couchbase
+# Couchbase (backend needs this)
 ########################################
 
 variable "couchbase_host" {
-  type    = string
-  default = "couchbase"
+  description = "Hostname for Couchbase"
+  type        = string
+  default     = "couchbase"
 }
 
 variable "couchbase_bucket" {
-  type    = string
-  default = "order_analytics"
+  description = "Bucket for analytics data"
+  type        = string
+  default     = "order_analytics"
 }
 
 variable "couchbase_username" {
-  type    = string
-  default = "Administrator"
+  description = "Couchbase username"
+  type        = string
+  default     = "Administrator"
 }
 
 variable "couchbase_password" {
-  type      = string
-  default   = "password"
-  sensitive = true
+  description = "Couchbase password"
+  type        = string
+  default     = "password"
+  sensitive   = true
 }
 
 ########################################
-# RDS CREDENTIALS
+# RDS Credentials
 ########################################
 
 variable "rds_username" {
-  type    = string
-  default = "orders_user"
+  description = "RDS/Postgres username"
+  type        = string
+  default     = "orders_user"
 }
 
 variable "rds_password" {
-  type      = string
-  sensitive = true
+  description = "RDS/Postgres password"
+  type        = string
+  sensitive   = true
 }
