@@ -1,10 +1,12 @@
 ########################################
-# RDS SUBNET GROUP
+# RDS SUBNET GROUP (PRIVATE SUBNETS)
 ########################################
 
 resource "aws_db_subnet_group" "main" {
   name       = "${var.project_name}-db-subnet-group"
-  subnet_ids = local.private_subnets
+
+  # IMPORTANT: use aws_subnet.private directly, not local.private_subnets
+  subnet_ids = aws_subnet.private[*].id
 
   tags = {
     Name = "${var.project_name}-db-subnet-group"
@@ -12,14 +14,14 @@ resource "aws_db_subnet_group" "main" {
 }
 
 ########################################
-# RDS INSTANCE
+# RDS INSTANCE (PostgreSQL)
 ########################################
 
 resource "aws_db_instance" "orders_db" {
-  depends_on = [
-    aws_db_subnet_group.main,
-    aws_security_group.rds   # DB depends on SG (correct direction)
-  ]
+  # IMPORTANT: no explicit depends_on here.
+  # Terraform will automatically depend on:
+  # - aws_db_subnet_group.main      via db_subnet_group_name
+  # - aws_security_group.rds        via vpc_security_group_ids
 
   identifier              = "${var.project_name}-db"
   allocated_storage       = 20
@@ -33,7 +35,7 @@ resource "aws_db_instance" "orders_db" {
   publicly_accessible     = false
 
   username                = var.rds_username
-  password                = replace(var.rds_password, "/[[:cntrl:]]/", "")
+  password                = var.rds_password
   db_name                 = replace(var.project_name, "/[^a-zA-Z0-9]/", "")
 
   vpc_security_group_ids  = [aws_security_group.rds.id]
