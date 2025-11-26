@@ -4,8 +4,6 @@
 
 resource "aws_db_subnet_group" "main" {
   name       = "${var.project_name}-db-subnet-group"
-
-  # IMPORTANT: use aws_subnet.private directly, not local.private_subnets
   subnet_ids = aws_subnet.private[*].id
 
   tags = {
@@ -18,11 +16,6 @@ resource "aws_db_subnet_group" "main" {
 ########################################
 
 resource "aws_db_instance" "orders_db" {
-  # IMPORTANT: no explicit depends_on here.
-  # Terraform will automatically depend on:
-  # - aws_db_subnet_group.main      via db_subnet_group_name
-  # - aws_security_group.rds        via vpc_security_group_ids
-
   identifier              = "${var.project_name}-db"
   allocated_storage       = 20
   max_allocated_storage   = 50
