@@ -1,5 +1,5 @@
 ##############################################
-# EXISTING VPC + SUBNETS (NO CREATION)
+# USE EXISTING VPC + SUBNETS
 ##############################################
 
 data "aws_vpc" "main" {
