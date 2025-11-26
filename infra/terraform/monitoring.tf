@@ -20,7 +20,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_cpu_high" {
 }
 
 ##############################################
-# RDS — CPU BACK TO NORMAL
+# RDS — CPU NORMAL
 ##############################################
 
 resource "aws_cloudwatch_metric_alarm" "rds_cpu_normal" {
@@ -33,50 +33,10 @@ resource "aws_cloudwatch_metric_alarm" "rds_cpu_normal" {
   statistic           = "Average"
   threshold           = 60
 
-  alarm_description   = "RDS CPU back to normal"
+  alarm_description   = "RDS CPU is normal"
 
   dimensions = {
     DBInstanceIdentifier = aws_db_instance.orders_db.id
-  }
-}
-
-##############################################
-# ECS SERVICE — CPU HIGH
-##############################################
-
-resource "aws_cloudwatch_metric_alarm" "ecs_cpu_high" {
-  alarm_name          = "${var.project_name}-ecs-cpu-high"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 1
-  metric_name         = "CPUUtilization"
-  namespace           = "AWS/ECS"
-  period              = 60
-  statistic           = "Average"
-  threshold           = 75
-
-  dimensions = {
-    ClusterName = aws_ecs_cluster.main.name
-    ServiceName = aws_ecs_service.order_producer.name
-  }
-}
-
-##############################################
-# ECS SERVICE — MEMORY HIGH
-##############################################
-
-resource "aws_cloudwatch_metric_alarm" "ecs_memory_high" {
-  alarm_name          = "${var.project_name}-ecs-memory-high"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 1
-  metric_name         = "MemoryUtilization"
-  namespace           = "AWS/ECS"
-  period              = 60
-  statistic           = "Average"
-  threshold           = 75
-
-  dimensions = {
-    ClusterName = aws_ecs_cluster.main.name
-    ServiceName = aws_ecs_service.order_producer.name
   }
 }
 
@@ -94,13 +54,15 @@ resource "aws_cloudwatch_metric_alarm" "alb_5xx" {
   statistic           = "Sum"
   threshold           = 10
 
+  alarm_description = "ALB is returning high 5xx errors"
+
   dimensions = {
     LoadBalancer = aws_lb.webapp_alb.arn_suffix
   }
 }
 
 ##############################################
-# ALB — LATENCY HIGH
+# ALB — HIGH LATENCY
 ##############################################
 
 resource "aws_cloudwatch_metric_alarm" "alb_latency" {
@@ -112,6 +74,8 @@ resource "aws_cloudwatch_metric_alarm" "alb_latency" {
   period              = 60
   statistic           = "Average"
   threshold           = 0.5
+
+  alarm_description = "ALB latency too high"
 
   dimensions = {
     LoadBalancer = aws_lb.webapp_alb.arn_suffix
