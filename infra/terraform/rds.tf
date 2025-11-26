@@ -1,11 +1,24 @@
 ########################################
-# RDS INSTANCE (PostgreSQL)
+# RDS SUBNET GROUP
+########################################
+
+resource "aws_db_subnet_group" "main" {
+  name       = "${var.project_name}-db-subnet-group"
+  subnet_ids = local.private_subnets
+
+  tags = {
+    Name = "${var.project_name}-db-subnet-group"
+  }
+}
+
+########################################
+# RDS INSTANCE
 ########################################
 
 resource "aws_db_instance" "orders_db" {
   depends_on = [
     aws_db_subnet_group.main,
-    aws_security_group.rds
+    aws_security_group.rds   # DB depends on SG (correct direction)
   ]
 
   identifier              = "${var.project_name}-db"
