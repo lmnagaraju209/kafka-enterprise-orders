@@ -141,3 +141,37 @@ variable "rds_password" {
   type        = string
   sensitive   = true
 }
+########################################
+# EXISTING INFRA (REUSE INSTEAD OF RECREATE)
+########################################
+
+variable "existing_vpc_id" {
+  type        = string
+  description = "Existing VPC ID where all Kafka ECS and RDS live"
+}
+
+variable "existing_private_subnet_ids" {
+  type        = list(string)
+  description = "Existing private subnets for ECS and RDS"
+}
+
+variable "existing_public_subnet_ids" {
+  type        = list(string)
+  description = "Existing public subnets for ALB"
+}
+
+variable "existing_rds_sg_id" {
+  type        = string
+  description = "Existing RDS security group ID"
+}
+
+variable "existing_alb_sg_id" {
+  type        = string
+  description = "Existing ALB security group ID"
+}
+
+variable "existing_ecs_tasks_sg_id" {
+  type        = string
+  description = "Existing ECS tasks security group ID"
+}
+
