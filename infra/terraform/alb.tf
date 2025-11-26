@@ -1,55 +1,67 @@
-#############################################
-# CREATE NEW ALB (Use existing VPC & SG)
-#############################################
+###############################
+# USE EXISTING ALB
+###############################
 
-resource "aws_lb" "webapp_alb" {
-  name               = "${var.project_name}-alb"
-  internal           = false
-  load_balancer_type = "application"
-  security_groups    = [var.existing_alb_sg_id]
-  subnets            = var.existing_public_subnet_ids
-
-  tags = {
-    Name = "${var.project_name}-alb"
-  }
+variable "existing_alb_arn" {
+  type        = string
+  description = "ARN of existing ALB"
 }
 
-#############################################
-# Target Group
-#############################################
+variable "existing_alb_sg_id" {
+  type        = string
+  description = "Security Group of existing ALB"
+}
+
+variable "existing_alb_listener_arn" {
+  type        = string
+  description = "Existing ALB listener ARN"
+}
+
+###############################
+# DATA LOOKUPS ONLY
+###############################
+
+# Lookup existing ALB
+data "aws_lb" "webapp_alb" {
+  arn = var.existing_alb_arn
+}
+
+# Lookup existing ALB listener
+data "aws_lb_listener" "webapp_listener" {
+  arn = var.existing_alb_listener_arn
+}
+
+# Use existing ALB SG
+data "aws_security_group" "alb" {
+  id = var.existing_alb_sg_id
+}
+
+###############################
+# TARGET GROUP ONLY (Terraform-managed)
+###############################
 
 resource "aws_lb_target_group" "webapp_tg" {
   name     = "${var.project_name}-tg"
-  port     = 8080
+  port     = 80
   protocol = "HTTP"
-  target_type = "ip"
-  vpc_id   = var.existing_vpc_id
-
-  health_check {
-    enabled             = true
-    interval            = 20
-    path                = "/health"
-    healthy_threshold   = 3
-    unhealthy_threshold = 2
-    timeout             = 5
-  }
-
-  tags = {
-    Name = "${var.project_name}-tg"
-  }
+  vpc_id   = data.aws_vpc.main.id
 }
 
-#############################################
-# ALB Listener
-#############################################
+###############################
+# LISTENER RULE (Terraform-managed)
+###############################
 
-resource "aws_lb_listener" "webapp_listener" {
-  load_balancer_arn = aws_lb.webapp_alb.arn
-  port              = 80
-  protocol          = "HTTP"
+resource "aws_lb_listener_rule" "webapp_forward" {
+  listener_arn = data.aws_lb_listener.webapp_listener.arn
 
-  default_action {
-    type = "forward"
+  action {
+    type             = "forward"
     target_group_arn = aws_lb_target_group.webapp_tg.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/*"]
+    }
   }
 }
