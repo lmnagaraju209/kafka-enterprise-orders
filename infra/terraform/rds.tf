@@ -1,10 +1,10 @@
 ########################################
-# RDS SUBNET GROUP (PRIVATE SUBNET)
+# RDS SUBNET GROUP (USE EXISTING SUBNETS)
 ########################################
 
 resource "aws_db_subnet_group" "main" {
   name       = "${var.project_name}-db-subnet-group"
-  subnet_ids = [aws_subnet.private[0].id]
+  subnet_ids = local.private_subnets
 
   tags = {
     Name = "${var.project_name}-db-subnet-group"
@@ -31,7 +31,10 @@ resource "aws_db_instance" "orders_db" {
   password                = var.rds_password
   db_name                 = replace(var.project_name, "/[^a-zA-Z0-9]/", "")
 
-  vpc_security_group_ids  = [aws_security_group.rds.id]
+  # USE EXISTING RDS SG
+  vpc_security_group_ids  = [data.aws_security_group.rds.id]
+
+  # USE EXISTING SUBNETS
   db_subnet_group_name    = aws_db_subnet_group.main.name
 
   skip_final_snapshot     = true
@@ -42,4 +45,3 @@ resource "aws_db_instance" "orders_db" {
     Name = "${var.project_name}-db"
   }
 }
-
