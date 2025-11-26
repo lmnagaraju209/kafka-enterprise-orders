@@ -3,8 +3,6 @@
 ########################################
 
 resource "aws_db_subnet_group" "main" {
-  depends_on = [aws_subnet.private]
-
   name       = "${var.project_name}-db-subnet-group"
   subnet_ids = local.private_subnets
 
@@ -20,7 +18,7 @@ resource "aws_db_subnet_group" "main" {
 resource "aws_db_instance" "orders_db" {
   depends_on = [
     aws_db_subnet_group.main,
-    aws_security_group.rds       # ensure SG does not delete too early
+    aws_security_group.rds
   ]
 
   identifier              = "${var.project_name}-db"
@@ -29,7 +27,7 @@ resource "aws_db_instance" "orders_db" {
   storage_type            = "gp3"
 
   engine                  = "postgres"
-  engine_version          = "15"   
+  engine_version          = "15"
   instance_class          = "db.t3.micro"
 
   publicly_accessible     = false
@@ -42,10 +40,4 @@ resource "aws_db_instance" "orders_db" {
   db_subnet_group_name    = aws_db_subnet_group.main.name
 
   skip_final_snapshot     = true
-  deletion_protection     = false
-  backup_retention_period = 0
-
-  tags = {
-    Name = "${var.project_name}-db"
-  }
-}
+  deletion_protection_
