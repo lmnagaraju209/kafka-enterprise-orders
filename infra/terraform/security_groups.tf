@@ -1,5 +1,5 @@
 ##############################################
-# EXISTING SECURITY GROUPS (NO CREATION)
+# USE EXISTING SECURITY GROUPS
 ##############################################
 
 data "aws_security_group" "ecs_tasks" {
