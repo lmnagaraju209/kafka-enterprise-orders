@@ -1,7 +1,3 @@
-##############################################
-# Locals (NO new VPC or subnets creation)
-##############################################
-
 locals {
   vpc_id          = var.existing_vpc_id
   private_subnets = var.existing_private_subnet_ids
