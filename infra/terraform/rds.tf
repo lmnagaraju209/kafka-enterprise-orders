@@ -1,17 +1,4 @@
 ########################################
-# RDS SUBNET GROUP (PRIVATE SUBNETS)
-########################################
-
-resource "aws_db_subnet_group" "main" {
-  name       = "${var.project_name}-db-subnet-group"
-  subnet_ids = local.private_subnets
-
-  tags = {
-    Name = "${var.project_name}-db-subnet-group"
-  }
-}
-
-########################################
 # RDS INSTANCE (PostgreSQL)
 ########################################
 
@@ -40,4 +27,10 @@ resource "aws_db_instance" "orders_db" {
   db_subnet_group_name    = aws_db_subnet_group.main.name
 
   skip_final_snapshot     = true
-  deletion_protection_
+  deletion_protection     = false
+  backup_retention_period = 0
+
+  tags = {
+    Name = "${var.project_name}-db"
+  }
+}
