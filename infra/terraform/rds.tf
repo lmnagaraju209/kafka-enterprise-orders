@@ -1,10 +1,10 @@
 ########################################
-# RDS SUBNET GROUP (PRIVATE SUBNETS)
+# RDS SUBNET GROUP (PRIVATE SUBNET)
 ########################################
 
 resource "aws_db_subnet_group" "main" {
   name       = "${var.project_name}-db-subnet-group"
-  subnet_ids = aws_subnet.private[*].id
+  subnet_ids = [aws_subnet.private[0].id]
 
   tags = {
     Name = "${var.project_name}-db-subnet-group"
@@ -42,3 +42,4 @@ resource "aws_db_instance" "orders_db" {
     Name = "${var.project_name}-db"
   }
 }
+

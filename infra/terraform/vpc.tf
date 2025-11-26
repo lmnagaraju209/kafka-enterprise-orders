@@ -3,7 +3,7 @@
 ##############################################
 
 resource "aws_vpc" "main" {
-  cidr_block           = "10.0.0.0/16"
+  cidr_block           = "10.10.0.0/16"
   enable_dns_support   = true
   enable_dns_hostnames = true
 
@@ -25,36 +25,41 @@ resource "aws_internet_gateway" "igw" {
 }
 
 ##############################################
-# PUBLIC SUBNETS (NO depends_on)
+# PUBLIC SUBNET (EXISTS IN AWS)
+# ID: subnet-0a338e6c09546b3a2
 ##############################################
 
 resource "aws_subnet" "public" {
-  count                   = 2
+  count                   = 1
   vpc_id                  = aws_vpc.main.id
-  cidr_block              = cidrsubnet("10.0.0.0/16", 4, count.index)
+  cidr_block              = "10.10.16.0/20"
+  availability_zone       = "us-east-2a"
   map_public_ip_on_launch = true
 
   tags = {
-    Name = "${var.project_name}-public-${count.index}"
+    Name = "${var.project_name}-public-a"
   }
 }
 
 ##############################################
-# PRIVATE SUBNETS (NO depends_on)
+# PRIVATE SUBNET (EXISTS IN AWS)
+# ID: subnet-0ed100a990ce18cf8
 ##############################################
 
 resource "aws_subnet" "private" {
-  count      = 2
-  vpc_id     = aws_vpc.main.id
-  cidr_block = cidrsubnet("10.0.0.0/16", 4, count.index + 10)
+  count             = 1
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = "10.10.11.0/24"
+  availability_zone = "us-east-2a"
 
   tags = {
-    Name = "${var.project_name}-private-${count.index}"
+    Name = "${var.project_name}-private-a"
   }
 }
 
 ##############################################
 # NAT GATEWAY + EIP
+# (Optional but included for ECS outbound internet)
 ##############################################
 
 resource "aws_eip" "nat_eip" {
@@ -92,8 +97,7 @@ resource "aws_route_table" "public_rt" {
 }
 
 resource "aws_route_table_association" "public_assoc" {
-  count          = 2
-  subnet_id      = aws_subnet.public[count.index].id
+  subnet_id      = aws_subnet.public[0].id
   route_table_id = aws_route_table.public_rt.id
 }
 
@@ -115,7 +119,7 @@ resource "aws_route_table" "private_rt" {
 }
 
 resource "aws_route_table_association" "private_assoc" {
-  count          = 2
-  subnet_id      = aws_subnet.private[count.index].id
+  subnet_id      = aws_subnet.private[0].id
   route_table_id = aws_route_table.private_rt.id
 }
+
