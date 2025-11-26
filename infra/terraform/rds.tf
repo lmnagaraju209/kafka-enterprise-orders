@@ -31,10 +31,10 @@ resource "aws_db_instance" "orders_db" {
   password                = var.rds_password
   db_name                 = replace(var.project_name, "/[^a-zA-Z0-9]/", "")
 
-  # USE EXISTING RDS SG
+  # Use existing RDS SG
   vpc_security_group_ids  = [data.aws_security_group.rds.id]
 
-  # USE EXISTING SUBNETS
+  # Use existing subnets
   db_subnet_group_name    = aws_db_subnet_group.main.name
 
   skip_final_snapshot     = true
