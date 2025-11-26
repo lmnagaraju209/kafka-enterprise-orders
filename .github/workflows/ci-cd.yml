@@ -8,7 +8,6 @@ on:
 env:
   AWS_REGION: us-east-2
   TF_WORKING_DIR: infra/terraform
-  GHCR_REGISTRY: ghcr.io
   PROJECT_NAME: kafka-enterprise-orders
 
 jobs:
@@ -33,26 +32,26 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Prepare lowercase namespace
+      - name: Lowercase Namespace
         id: prep
         run: |
           NS=$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')
           echo "namespace=$NS" >> $GITHUB_OUTPUT
 
-      - name: Log in to GHCR
+      - name: Login to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build & Push Images
+      - name: Build and Push Images
         id: build
         run: |
           NS="${{ steps.prep.outputs.namespace }}"
           REPO="kafka-enterprise-orders"
 
-          echo "Using lowercase namespace: $NS"
+          echo "Using namespace: $NS"
 
           # Producer
           docker build -t ghcr.io/$NS/$REPO-producer:latest producer
@@ -91,17 +90,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configure AWS
+      - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-2
 
-      - name: Setup Terraform
+      - name: Install Terraform
         uses: hashicorp/setup-terraform@v2
 
       - name: Terraform Init
@@ -117,6 +117,14 @@ jobs:
           TF_VAR_container_image_analytics: ${{ needs.build-and-push.outputs.analytics }}
           TF_VAR_web_backend_image: ${{ needs.build-and-push.outputs.web_backend }}
           TF_VAR_web_frontend_image: ${{ needs.build-and-push.outputs.web_frontend }}
+
+          # REQUIRED Confluent vars
+          TF_VAR_confluent_bootstrap_servers: ${{ secrets.CONFLUENT_BOOTSTRAP_SERVERS }}
+          TF_VAR_confluent_api_key: ${{ secrets.CONFLUENT_API_KEY }}
+          TF_VAR_confluent_api_secret: ${{ secrets.CONFLUENT_API_SECRET }}
+
+          # RDS password
+          TF_VAR_rds_password: ${{ secrets.RDS_PASSWORD }}
         run: terraform plan -out=tfplan
 
       - name: Terraform Apply
@@ -140,13 +148,13 @@ jobs:
             --name kafka-cluster \
             --region us-east-2
 
-      - name: Helm Deploy
+      - name: Deploy via Helm
         run: |
           helm upgrade --install webapp k8s/charts/webapp \
             --set backendImage=${{ needs.build-and-push.outputs.web_backend }} \
             --set frontendImage=${{ needs.build-and-push.outputs.web_frontend }}
 
-      - name: Wait for Backend to Rollout
+      - name: Wait for Deployment Rollout
         run: kubectl rollout status deployment/webapp --timeout=180s
 
       - name: Backend Health Check
@@ -159,12 +167,12 @@ jobs:
           for i in {1..10}; do
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" $BACKEND_URL)
             if [ "$STATUS" = "200" ]; then
-              echo "Backend healthy!"
+              echo "Backend is healthy!"
               exit 0
             fi
             echo "Attempt $i: backend not ready ($STATUS). Retrying..."
             sleep 10
           done
 
-          echo "Backend FAILED health check"
+          echo "Backend health check FAILED!"
           exit 1
