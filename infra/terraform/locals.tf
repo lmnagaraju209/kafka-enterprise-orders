@@ -3,7 +3,7 @@
 ##############################################
 
 locals {
-  public_subnets  = aws_subnet.public[*].id
-  private_subnets = aws_subnet.private[*].id
+  # Reuse existing subnets from variables
+  public_subnets  = var.existing_public_subnet_ids
+  private_subnets = var.existing_private_subnet_ids
 }
-
