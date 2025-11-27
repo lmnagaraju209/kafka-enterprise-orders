@@ -3,7 +3,8 @@
 ###############################################
 
 resource "aws_ecs_cluster" "main" {
-  name = "${var.project_name}-cluster"
+  # use a slightly different name to avoid "already exists"
+  name = "${var.project_name}-cluster-main"
 }
 
 ###############################################
@@ -11,7 +12,7 @@ resource "aws_ecs_cluster" "main" {
 ###############################################
 
 resource "aws_iam_role" "ecs_task_role" {
-  name = "${var.project_name}-ecs-task-role"
+  name = "${var.project_name}-ecs-task-role-main"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -24,32 +25,47 @@ resource "aws_iam_role" "ecs_task_role" {
 }
 
 ###############################################
-# PRODUCER
+# COMMON FARGATE SETTINGS
+###############################################
+
+locals {
+  fargate_cpu    = 256
+  fargate_memory = 512
+}
+
+###############################################
+# PRODUCER SERVICE
 ###############################################
 
 resource "aws_ecs_task_definition" "producer" {
-  family                   = "order-producer"
+  family                   = "${var.project_name}-producer"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
-  cpu                      = 256
-  memory                   = 512
+  cpu                      = local.fargate_cpu
+  memory                   = local.fargate_memory
   execution_role_arn       = aws_iam_role.ecs_task_role.arn
   task_role_arn            = aws_iam_role.ecs_task_role.arn
 
   container_definitions = jsonencode([
     {
-      name      = "order-producer"
+      name      = "producer"
       image     = var.container_image_producer
       essential = true
+      environment = [
+        { name = "BOOTSTRAP_SERVERS", value = var.confluent_bootstrap_servers },
+        { name = "CONFLUENT_API_KEY", value = var.confluent_api_key },
+        { name = "CONFLUENT_API_SECRET", value = var.confluent_api_secret }
+      ]
     }
   ])
 }
 
 resource "aws_ecs_service" "producer" {
-  name            = "order-producer"
+  name            = "${var.project_name}-producer"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.producer.arn
   desired_count   = 1
+  launch_type     = "FARGATE"
 
   network_configuration {
     subnets          = local.private_subnets
@@ -59,15 +75,15 @@ resource "aws_ecs_service" "producer" {
 }
 
 ###############################################
-# FRAUD
+# FRAUD SERVICE
 ###############################################
 
 resource "aws_ecs_task_definition" "fraud" {
-  family                   = "fraud-service"
+  family                   = "${var.project_name}-fraud"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
-  cpu                      = 256
-  memory                   = 512
+  cpu                      = local.fargate_cpu
+  memory                   = local.fargate_memory
   execution_role_arn       = aws_iam_role.ecs_task_role.arn
   task_role_arn            = aws_iam_role.ecs_task_role.arn
 
@@ -81,10 +97,11 @@ resource "aws_ecs_task_definition" "fraud" {
 }
 
 resource "aws_ecs_service" "fraud" {
-  name            = "fraud-service"
+  name            = "${var.project_name}-fraud"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.fraud.arn
   desired_count   = 1
+  launch_type     = "FARGATE"
 
   network_configuration {
     subnets          = local.private_subnets
@@ -94,15 +111,15 @@ resource "aws_ecs_service" "fraud" {
 }
 
 ###############################################
-# PAYMENT
+# PAYMENT SERVICE
 ###############################################
 
 resource "aws_ecs_task_definition" "payment" {
-  family                   = "payment-service"
+  family                   = "${var.project_name}-payment"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
-  cpu                      = 256
-  memory                   = 512
+  cpu                      = local.fargate_cpu
+  memory                   = local.fargate_memory
   execution_role_arn       = aws_iam_role.ecs_task_role.arn
   task_role_arn            = aws_iam_role.ecs_task_role.arn
 
@@ -116,10 +133,11 @@ resource "aws_ecs_task_definition" "payment" {
 }
 
 resource "aws_ecs_service" "payment" {
-  name            = "payment-service"
+  name            = "${var.project_name}-payment"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.payment.arn
   desired_count   = 1
+  launch_type     = "FARGATE"
 
   network_configuration {
     subnets          = local.private_subnets
@@ -129,15 +147,15 @@ resource "aws_ecs_service" "payment" {
 }
 
 ###############################################
-# ANALYTICS
+# ANALYTICS SERVICE
 ###############################################
 
 resource "aws_ecs_task_definition" "analytics" {
-  family                   = "analytics-service"
+  family                   = "${var.project_name}-analytics"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
-  cpu                      = 256
-  memory                   = 512
+  cpu                      = local.fargate_cpu
+  memory                   = local.fargate_memory
   execution_role_arn       = aws_iam_role.ecs_task_role.arn
   task_role_arn            = aws_iam_role.ecs_task_role.arn
 
@@ -151,10 +169,11 @@ resource "aws_ecs_task_definition" "analytics" {
 }
 
 resource "aws_ecs_service" "analytics" {
-  name            = "analytics-service"
+  name            = "${var.project_name}-analytics"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.analytics.arn
   desired_count   = 1
+  launch_type     = "FARGATE"
 
   network_configuration {
     subnets          = local.private_subnets
