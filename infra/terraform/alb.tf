@@ -12,10 +12,11 @@ resource "aws_lb" "ecs_alb" {
 }
 
 ###############################################
-# TARGET GROUP – FRONTEND ONLY
+# TARGET GROUP – FRONTEND
 ###############################################
 
 resource "aws_lb_target_group" "frontend_tg" {
+  # use prefix so AWS generates a unique name, avoids collisions & length issues
   name_prefix = "fe-"
 
   port        = 80
