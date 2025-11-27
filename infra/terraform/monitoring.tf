@@ -1,22 +1,33 @@
 ###############################################
-# MONITORING — CLEANED VERSION
-# ALB MONITORING REMOVED (NO ALB DATA SOURCE)
+# ALB MONITORING
 ###############################################
 
-# Example ECS CPU Alarm
-resource "aws_cloudwatch_metric_alarm" "ecs_cpu_high" {
-  alarm_name          = "${var.project_name}-ecs-cpu-high"
+resource "aws_cloudwatch_metric_alarm" "alb_5xx" {
+  alarm_name          = "${var.project_name}-alb-5xx-errors"
   comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 2
-  metric_name         = "CPUUtilization"
-  namespace           = "AWS/ECS"
-  period              = 300
-  statistic           = "Average"
-  threshold           = 80
+  evaluation_periods  = 1
+  metric_name         = "HTTPCode_ELB_5XX_Count"
+  namespace           = "AWS/ApplicationELB"
+  period              = 60
+  statistic           = "Sum"
+  threshold           = 1
 
   dimensions = {
-    ClusterName = aws_ecs_cluster.main.name
+    LoadBalancer = aws_lb.ecs_alb.arn_suffix
   }
+}
 
-  alarm_description = "ECS CPU usage is too high."
+resource "aws_cloudwatch_metric_alarm" "alb_latency" {
+  alarm_name          = "${var.project_name}-alb-latency"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  metric_name         = "TargetResponseTime"
+  namespace           = "AWS/ApplicationELB"
+  period              = 60
+  statistic           = "Average"
+  threshold           = 1
+
+  dimensions = {
+    LoadBalancer = aws_lb.ecs_alb.arn_suffix
+  }
 }
