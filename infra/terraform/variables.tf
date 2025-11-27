@@ -1,5 +1,13 @@
 ###############################################
-# EXISTING NETWORK
+# PROJECT NAME
+###############################################
+variable "project_name" {
+  type    = string
+  default = "kafka-enterprise-orders"
+}
+
+###############################################
+# EXISTING NETWORK (FROM YOUR ACCOUNT)
 ###############################################
 variable "existing_vpc_id" {
   type = string
@@ -29,25 +37,31 @@ variable "existing_alb_sg_id" {
 }
 
 ###############################################
-# EXISTING ALB + LISTENER (RESTORED)
-###############################################
-variable "existing_alb_arn" {
-  type = string
-}
-
-variable "existing_alb_listener_arn" {
-  type = string
-}
-
-###############################################
 # DOCKER IMAGES
 ###############################################
-variable "container_image_producer" { type = string }
-variable "container_image_fraud"    { type = string }
-variable "container_image_payment"  { type = string }
-variable "container_image_analytics" { type = string }
-variable "web_backend_image"        { type = string }
-variable "web_frontend_image"       { type = string }
+variable "container_image_producer" {
+  type = string
+}
+
+variable "container_image_fraud" {
+  type = string
+}
+
+variable "container_image_payment" {
+  type = string
+}
+
+variable "container_image_analytics" {
+  type = string
+}
+
+variable "web_backend_image" {
+  type = string
+}
+
+variable "web_frontend_image" {
+  type = string
+}
 
 ###############################################
 # RDS PASSWORD
@@ -69,12 +83,4 @@ variable "confluent_api_key" {
 
 variable "confluent_api_secret" {
   type = string
-}
-
-###############################################
-# PROJECT NAME
-###############################################
-variable "project_name" {
-  type = string
-  default = "kafka-enterprise-orders"
 }
