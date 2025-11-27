@@ -24,7 +24,7 @@ resource "aws_iam_role" "ecs_task_role" {
 }
 
 ###############################################
-# PRODUCER TASK & SERVICE
+# PRODUCER
 ###############################################
 
 resource "aws_ecs_task_definition" "producer" {
@@ -59,7 +59,7 @@ resource "aws_ecs_service" "producer" {
 }
 
 ###############################################
-# FRAUD SERVICE
+# FRAUD
 ###############################################
 
 resource "aws_ecs_task_definition" "fraud" {
@@ -94,7 +94,7 @@ resource "aws_ecs_service" "fraud" {
 }
 
 ###############################################
-# PAYMENT SERVICE
+# PAYMENT
 ###############################################
 
 resource "aws_ecs_task_definition" "payment" {
@@ -129,7 +129,7 @@ resource "aws_ecs_service" "payment" {
 }
 
 ###############################################
-# ANALYTICS SERVICE
+# ANALYTICS
 ###############################################
 
 resource "aws_ecs_task_definition" "analytics" {
