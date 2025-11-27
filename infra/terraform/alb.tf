@@ -10,7 +10,7 @@ resource "aws_lb" "ecs_alb" {
 }
 
 ###############################################
-# LISTENER (HTTP :80)
+# LISTENER (HTTP PORT 80)
 ###############################################
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.ecs_alb.arn
@@ -19,7 +19,6 @@ resource "aws_lb_listener" "http" {
 
   default_action {
     type = "fixed-response"
-
     fixed_response {
       content_type = "text/plain"
       status_code  = "200"
@@ -29,61 +28,59 @@ resource "aws_lb_listener" "http" {
 }
 
 ###############################################
-# TARGET GROUPS (ALL SERVICES ON PORT 8080)
+# TARGET GROUPS FOR ALL SERVICES
 ###############################################
-
 resource "aws_lb_target_group" "producer_tg" {
   name        = "producer-tg"
   port        = 8080
   protocol    = "HTTP"
-  vpc_id      = var.existing_vpc_id
   target_type = "ip"
+  vpc_id      = var.existing_vpc_id
 }
 
 resource "aws_lb_target_group" "fraud_tg" {
   name        = "fraud-tg"
   port        = 8080
   protocol    = "HTTP"
-  vpc_id      = var.existing_vpc_id
   target_type = "ip"
+  vpc_id      = var.existing_vpc_id
 }
 
 resource "aws_lb_target_group" "payment_tg" {
   name        = "payment-tg"
   port        = 8080
   protocol    = "HTTP"
-  vpc_id      = var.existing_vpc_id
   target_type = "ip"
+  vpc_id      = var.existing_vpc_id
 }
 
 resource "aws_lb_target_group" "analytics_tg" {
   name        = "analytics-tg"
   port        = 8080
   protocol    = "HTTP"
-  vpc_id      = var.existing_vpc_id
   target_type = "ip"
+  vpc_id      = var.existing_vpc_id
 }
 
-resource "aws_lb_target_group" "web_backend_tg" {
-  name        = "web-backend-tg"
+resource "aws_lb_target_group" "backend_tg" {
+  name        = "backend-tg"
   port        = 8080
   protocol    = "HTTP"
-  vpc_id      = var.existing_vpc_id
   target_type = "ip"
+  vpc_id      = var.existing_vpc_id
 }
 
-resource "aws_lb_target_group" "web_frontend_tg" {
-  name        = "web-frontend-tg"
+resource "aws_lb_target_group" "frontend_tg" {
+  name        = "frontend-tg"
   port        = 8080
   protocol    = "HTTP"
-  vpc_id      = var.existing_vpc_id
   target_type = "ip"
+  vpc_id      = var.existing_vpc_id
 }
 
 ###############################################
-# LISTENER RULES (ROUTING)
+# LISTENER ROUTING RULES
 ###############################################
-
 resource "aws_lb_listener_rule" "producer_rule" {
   listener_arn = aws_lb_listener.http.arn
   priority     = 10
@@ -146,7 +143,7 @@ resource "aws_lb_listener_rule" "backend_rule" {
 
   action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.web_backend_tg.arn
+    target_group_arn = aws_lb_target_group.backend_tg.arn
   }
 
   condition {
@@ -160,7 +157,7 @@ resource "aws_lb_listener_rule" "frontend_rule" {
 
   action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.web_frontend_tg.arn
+    target_group_arn = aws_lb_target_group.frontend_tg.arn
   }
 
   condition {
