@@ -1,5 +1,5 @@
 ###############################################
-# NETWORK
+# EXISTING NETWORK
 ###############################################
 variable "existing_vpc_id" {
   type = string
@@ -14,7 +14,7 @@ variable "existing_public_subnet_ids" {
 }
 
 ###############################################
-# SECURITY GROUPS
+# EXISTING SECURITY GROUPS
 ###############################################
 variable "existing_ecs_tasks_sg_id" {
   type = string
@@ -25,6 +25,17 @@ variable "existing_rds_sg_id" {
 }
 
 variable "existing_alb_sg_id" {
+  type = string
+}
+
+###############################################
+# EXISTING ALB + LISTENER (RESTORED)
+###############################################
+variable "existing_alb_arn" {
+  type = string
+}
+
+variable "existing_alb_listener_arn" {
   type = string
 }
 
