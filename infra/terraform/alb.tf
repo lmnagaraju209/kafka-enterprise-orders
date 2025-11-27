@@ -1,7 +1,6 @@
 ###############################################
 # APPLICATION LOAD BALANCER
 ###############################################
-
 resource "aws_lb" "ecs_alb" {
   name               = "${var.project_name}-alb"
   internal           = false
@@ -11,59 +10,160 @@ resource "aws_lb" "ecs_alb" {
 }
 
 ###############################################
-# LISTENER (HTTP : 80)
+# LISTENER (HTTP :80)
 ###############################################
-
-resource "aws_lb_listener" "http_listener" {
+resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.ecs_alb.arn
   port              = 80
   protocol          = "HTTP"
+
   default_action {
     type = "fixed-response"
+
     fixed_response {
       content_type = "text/plain"
-      message_body = "Service Running"
       status_code  = "200"
+      message_body = "Service Online"
     }
   }
 }
 
 ###############################################
-# TARGET GROUPS
+# TARGET GROUPS (ALL SERVICES ON PORT 8080)
 ###############################################
 
-resource "aws_lb_target_group" "order_producer_tg" {
-  name        = "order-producer-tg"
+resource "aws_lb_target_group" "producer_tg" {
+  name        = "producer-tg"
   port        = 8080
   protocol    = "HTTP"
-  target_type = "ip"
   vpc_id      = var.existing_vpc_id
+  target_type = "ip"
+}
 
-  health_check {
-    path                = "/"
-    interval            = 30
-    timeout             = 5
-    healthy_threshold   = 2
-    unhealthy_threshold = 2
-  }
+resource "aws_lb_target_group" "fraud_tg" {
+  name        = "fraud-tg"
+  port        = 8080
+  protocol    = "HTTP"
+  vpc_id      = var.existing_vpc_id
+  target_type = "ip"
+}
+
+resource "aws_lb_target_group" "payment_tg" {
+  name        = "payment-tg"
+  port        = 8080
+  protocol    = "HTTP"
+  vpc_id      = var.existing_vpc_id
+  target_type = "ip"
+}
+
+resource "aws_lb_target_group" "analytics_tg" {
+  name        = "analytics-tg"
+  port        = 8080
+  protocol    = "HTTP"
+  vpc_id      = var.existing_vpc_id
+  target_type = "ip"
+}
+
+resource "aws_lb_target_group" "web_backend_tg" {
+  name        = "web-backend-tg"
+  port        = 8080
+  protocol    = "HTTP"
+  vpc_id      = var.existing_vpc_id
+  target_type = "ip"
+}
+
+resource "aws_lb_target_group" "web_frontend_tg" {
+  name        = "web-frontend-tg"
+  port        = 8080
+  protocol    = "HTTP"
+  vpc_id      = var.existing_vpc_id
+  target_type = "ip"
 }
 
 ###############################################
-# ATTACH ECS SERVICE TO TARGET GROUP
+# LISTENER RULES (ROUTING)
 ###############################################
 
-resource "aws_lb_listener_rule" "order_producer_rule" {
-  listener_arn = aws_lb_listener.http_listener.arn
+resource "aws_lb_listener_rule" "producer_rule" {
+  listener_arn = aws_lb_listener.http.arn
   priority     = 10
 
   action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.order_producer_tg.arn
+    target_group_arn = aws_lb_target_group.producer_tg.arn
   }
 
   condition {
-    path_pattern {
-      values = ["/producer/*"]
-    }
+    path_pattern { values = ["/producer/*"] }
+  }
+}
+
+resource "aws_lb_listener_rule" "fraud_rule" {
+  listener_arn = aws_lb_listener.http.arn
+  priority     = 20
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.fraud_tg.arn
+  }
+
+  condition {
+    path_pattern { values = ["/fraud/*"] }
+  }
+}
+
+resource "aws_lb_listener_rule" "payment_rule" {
+  listener_arn = aws_lb_listener.http.arn
+  priority     = 30
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.payment_tg.arn
+  }
+
+  condition {
+    path_pattern { values = ["/payment/*"] }
+  }
+}
+
+resource "aws_lb_listener_rule" "analytics_rule" {
+  listener_arn = aws_lb_listener.http.arn
+  priority     = 40
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.analytics_tg.arn
+  }
+
+  condition {
+    path_pattern { values = ["/analytics/*"] }
+  }
+}
+
+resource "aws_lb_listener_rule" "backend_rule" {
+  listener_arn = aws_lb_listener.http.arn
+  priority     = 50
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.web_backend_tg.arn
+  }
+
+  condition {
+    path_pattern { values = ["/api/*"] }
+  }
+}
+
+resource "aws_lb_listener_rule" "frontend_rule" {
+  listener_arn = aws_lb_listener.http.arn
+  priority     = 60
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.web_frontend_tg.arn
+  }
+
+  condition {
+    path_pattern { values = ["/*"] }
   }
 }
