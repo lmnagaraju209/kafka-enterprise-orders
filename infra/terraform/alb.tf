@@ -1,78 +1,41 @@
-########################################
+###############################################
 # APPLICATION LOAD BALANCER
-########################################
+###############################################
 
 resource "aws_lb" "ecs_alb" {
-  name               = "${var.project_name}-alb"
+  name               = "${var.project_name}-alb-main"
   load_balancer_type = "application"
   internal           = false
-  security_groups    = [aws_security_group.alb_sg.id]
-  subnets            = var.public_subnet_ids
+
+  security_groups = [local.alb_sg]
+  subnets         = local.public_subnets
 }
 
-########################################
-# ALB SECURITY GROUP
-########################################
+###############################################
+# TARGET GROUP – FRONTEND ONLY
+###############################################
 
-resource "aws_security_group" "alb_sg" {
-  name        = "${var.project_name}-alb-sg"
-  description = "Allow inbound HTTP"
-  vpc_id      = var.vpc_id
+resource "aws_lb_target_group" "frontend_tg" {
+  name        = "${var.project_name}-frontend-tg-main"
+  port        = 80
+  protocol    = "HTTP"
+  target_type = "ip"
+  vpc_id      = var.existing_vpc_id
 
-  ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+  health_check {
+    path                = "/"
+    protocol            = "HTTP"
+    matcher             = "200-399"
+    interval            = 30
+    unhealthy_threshold = 2
+    healthy_threshold   = 2
+    timeout             = 5
   }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
 }
 
-########################################
-# TARGET GROUPS
-########################################
-
-resource "aws_lb_target_group" "producer_tg" {
-  name        = "producer-tg"
-  port        = 8080
-  protocol    = "HTTP"
-  target_type = "ip"
-  vpc_id      = var.vpc_id
-}
-
-resource "aws_lb_target_group" "fraud_tg" {
-  name        = "fraud-tg"
-  port        = 8080
-  protocol    = "HTTP"
-  target_type = "ip"
-  vpc_id      = var.vpc_id
-}
-
-resource "aws_lb_target_group" "payment_tg" {
-  name        = "payment-tg"
-  port        = 8080
-  protocol    = "HTTP"
-  target_type = "ip"
-  vpc_id      = var.vpc_id
-}
-
-resource "aws_lb_target_group" "analytics_tg" {
-  name        = "analytics-tg"
-  port        = 8080
-  protocol    = "HTTP"
-  target_type = "ip"
-  vpc_id      = var.vpc_id
-}
-
-########################################
-# LISTENER
-########################################
+###############################################
+# LISTENER – HTTP 80
+###############################################
 
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.ecs_alb.arn
@@ -81,6 +44,6 @@ resource "aws_lb_listener" "http" {
 
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.producer_tg.arn
+    target_group_arn = aws_lb_target_group.frontend_tg.arn
   }
 }
