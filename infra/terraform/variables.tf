@@ -1,5 +1,5 @@
 ###############################################
-# EXISTING NETWORK
+# NETWORK
 ###############################################
 variable "existing_vpc_id" {
   type = string
@@ -14,7 +14,7 @@ variable "existing_public_subnet_ids" {
 }
 
 ###############################################
-# EXISTING SECURITY GROUPS
+# SECURITY GROUPS
 ###############################################
 variable "existing_ecs_tasks_sg_id" {
   type = string
@@ -25,17 +25,6 @@ variable "existing_rds_sg_id" {
 }
 
 variable "existing_alb_sg_id" {
-  type = string
-}
-
-###############################################
-# EXISTING ALB + LISTENER
-###############################################
-variable "existing_alb_arn" {
-  type = string
-}
-
-variable "existing_alb_listener_arn" {
   type = string
 }
 
@@ -69,4 +58,12 @@ variable "confluent_api_key" {
 
 variable "confluent_api_secret" {
   type = string
+}
+
+###############################################
+# PROJECT NAME
+###############################################
+variable "project_name" {
+  type = string
+  default = "kafka-enterprise-orders"
 }
