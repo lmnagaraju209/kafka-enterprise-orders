@@ -3,11 +3,11 @@
 ###############################################
 
 resource "aws_lb" "ecs_alb" {
-  name               = "${var.project_name}-alb-main"
+  name               = "${local.project_name}-alb-main"
   load_balancer_type = "application"
   internal           = false
 
-  security_groups = [local.alb_sg]
+  security_groups = [local.alb_sg_id]
   subnets         = local.public_subnets
 }
 
@@ -16,13 +16,12 @@ resource "aws_lb" "ecs_alb" {
 ###############################################
 
 resource "aws_lb_target_group" "frontend_tg" {
-  # use a prefix so AWS generates a unique name and avoids conflicts
   name_prefix = "fe-"
 
   port        = 80
   protocol    = "HTTP"
   target_type = "ip"
-  vpc_id      = var.existing_vpc_id
+  vpc_id      = local.vpc_id
 
   health_check {
     path                = "/"
