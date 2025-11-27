@@ -38,8 +38,8 @@ resource "aws_ecs_task_definition" "producer" {
 
   container_definitions = jsonencode([
     {
-      name  = "order-producer"
-      image = var.container_image_producer
+      name      = "order-producer"
+      image     = var.container_image_producer
       essential = true
     }
   ])
@@ -53,7 +53,7 @@ resource "aws_ecs_service" "producer" {
 
   network_configuration {
     subnets          = local.private_subnets
-    security_groups  = [local.ecs_tasks_sg_id]
+    security_groups  = [local.ecs_tasks_sg]
     assign_public_ip = false
   }
 }
@@ -70,10 +70,11 @@ resource "aws_ecs_task_definition" "fraud" {
   memory                   = 512
   execution_role_arn       = aws_iam_role.ecs_task_role.arn
   task_role_arn            = aws_iam_role.ecs_task_role.arn
+
   container_definitions = jsonencode([
     {
-      name = "fraud-service"
-      image = var.container_image_fraud
+      name      = "fraud-service"
+      image     = var.container_image_fraud
       essential = true
     }
   ])
@@ -87,7 +88,7 @@ resource "aws_ecs_service" "fraud" {
 
   network_configuration {
     subnets          = local.private_subnets
-    security_groups  = [local.ecs_tasks_sg_id]
+    security_groups  = [local.ecs_tasks_sg]
     assign_public_ip = false
   }
 }
@@ -104,10 +105,11 @@ resource "aws_ecs_task_definition" "payment" {
   memory                   = 512
   execution_role_arn       = aws_iam_role.ecs_task_role.arn
   task_role_arn            = aws_iam_role.ecs_task_role.arn
+
   container_definitions = jsonencode([
     {
-      name = "payment-service"
-      image = var.container_image_payment
+      name      = "payment-service"
+      image     = var.container_image_payment
       essential = true
     }
   ])
@@ -121,7 +123,7 @@ resource "aws_ecs_service" "payment" {
 
   network_configuration {
     subnets          = local.private_subnets
-    security_groups  = [local.ecs_tasks_sg_id]
+    security_groups  = [local.ecs_tasks_sg]
     assign_public_ip = false
   }
 }
@@ -138,10 +140,11 @@ resource "aws_ecs_task_definition" "analytics" {
   memory                   = 512
   execution_role_arn       = aws_iam_role.ecs_task_role.arn
   task_role_arn            = aws_iam_role.ecs_task_role.arn
+
   container_definitions = jsonencode([
     {
-      name = "analytics-service"
-      image = var.container_image_analytics
+      name      = "analytics-service"
+      image     = var.container_image_analytics
       essential = true
     }
   ])
@@ -155,7 +158,7 @@ resource "aws_ecs_service" "analytics" {
 
   network_configuration {
     subnets          = local.private_subnets
-    security_groups  = [local.ecs_tasks_sg_id]
+    security_groups  = [local.ecs_tasks_sg]
     assign_public_ip = false
   }
 }
