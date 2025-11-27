@@ -1,29 +1,22 @@
-resource "aws_cloudwatch_metric_alarm" "alb_5xx" {
-  alarm_name          = "alb-5xx-errors"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 1
-  metric_name         = "HTTPCode_ELB_5XX_Count"
-  namespace           = "AWS/ELB"
-  period              = 60
-  statistic           = "Sum"
-  threshold           = 1
+###############################################
+# MONITORING — CLEANED VERSION
+# ALB MONITORING REMOVED (NO ALB DATA SOURCE)
+###############################################
 
-  dimensions = {
-    LoadBalancer = data.aws_lb.webapp_alb.arn_suffix
-  }
-}
-
-resource "aws_cloudwatch_metric_alarm" "alb_latency" {
-  alarm_name          = "alb-latency"
+# Example ECS CPU Alarm
+resource "aws_cloudwatch_metric_alarm" "ecs_cpu_high" {
+  alarm_name          = "${var.project_name}-ecs-cpu-high"
   comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 1
-  metric_name         = "Latency"
-  namespace           = "AWS/ELB"
-  period              = 60
+  evaluation_periods  = 2
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/ECS"
+  period              = 300
   statistic           = "Average"
-  threshold           = 0.5
+  threshold           = 80
 
   dimensions = {
-    LoadBalancer = data.aws_lb.webapp_alb.arn_suffix
+    ClusterName = aws_ecs_cluster.main.name
   }
+
+  alarm_description = "ECS CPU usage is too high."
 }
