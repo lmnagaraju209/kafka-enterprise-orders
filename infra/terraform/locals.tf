@@ -1,12 +1,11 @@
-###############################################
-# LOCALS
-###############################################
-
 locals {
-  private_subnets = var.existing_private_subnet_ids
-  public_subnets  = var.existing_public_subnet_ids
+  vpc_id           = var.existing_vpc_id
+  private_subnets  = var.existing_private_subnet_ids
+  public_subnets   = var.existing_public_subnet_ids
 
-  ecs_tasks_sg = var.existing_ecs_tasks_sg_id
-  alb_sg       = var.existing_alb_sg_id
-  rds_sg       = var.existing_rds_sg_id
+  ecs_tasks_sg_id  = var.existing_ecs_tasks_sg_id
+  alb_sg_id        = var.existing_alb_sg_id
+  rds_sg_id        = var.existing_rds_sg_id
+
+  project_name     = var.project_name
 }
