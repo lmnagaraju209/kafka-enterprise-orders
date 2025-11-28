@@ -1,9 +1,9 @@
 version: '3.8'
 
 services:
-  # -------------------------------------------------------
+  # -------------------------------
   # ZOOKEEPER
-  # -------------------------------------------------------
+  # -------------------------------
   zookeeper:
     image: confluentinc/cp-zookeeper:7.6.1
     container_name: zookeeper
@@ -13,9 +13,9 @@ services:
     ports:
       - "2181:2181"
 
-  # -------------------------------------------------------
+  # -------------------------------
   # KAFKA BROKER
-  # -------------------------------------------------------
+  # -------------------------------
   kafka:
     image: confluentinc/cp-kafka:7.6.1
     container_name: kafka
@@ -27,20 +27,20 @@ services:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
 
-      # Required listener settings
+      # Networking
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
 
-      # For single-node dev mode
+      # Single-node cluster settings
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
 
-  # -------------------------------------------------------
+  # -------------------------------
   # SCHEMA REGISTRY
-  # -------------------------------------------------------
+  # -------------------------------
   schema-registry:
     image: confluentinc/cp-schema-registry:7.6.1
     container_name: schema-registry
@@ -53,9 +53,9 @@ services:
       SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
       SCHEMA_REGISTRY_HOST_NAME: schema-registry
 
-  # -------------------------------------------------------
+  # -------------------------------
   # KAFKA CONNECT
-  # -------------------------------------------------------
+  # -------------------------------
   connect:
     image: confluentinc/cp-kafka-connect:7.6.1
     container_name: connect
@@ -65,8 +65,10 @@ services:
     ports:
       - "8083:8083"
     environment:
-      CONNECT_BOOTSTRAP_SERVERS: kafka:9092
       CONNECT_REST_PORT: 8083
+      CONNECT_REST_ADVERTISED_HOST_NAME: connect
+
+      CONNECT_BOOTSTRAP_SERVERS: kafka:9092
       CONNECT_GROUP_ID: "connect-cluster"
 
       CONNECT_CONFIG_STORAGE_TOPIC: connect-configs
@@ -76,20 +78,30 @@ services:
       CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 1
       CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 1
 
+      # ---------------------------
+      # IMPORTANT: JSON WITHOUT SCHEMAS
+      # ---------------------------
       CONNECT_KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
-      CONNECT_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
-      CONNECT_INTERNAL_KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
-      CONNECT_INTERNAL_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_KEY_CONVERTER_SCHEMAS_ENABLE: "false"
 
+      CONNECT_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+
+      CONNECT_INTERNAL_KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_INTERNAL_KEY_CONVERTER_SCHEMAS_ENABLE: "false"
+
+      CONNECT_INTERNAL_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_INTERNAL_VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+
+      # Load connector plugins (Couchbase Sink JARs)
       CONNECT_PLUGIN_PATH: /usr/share/java,/connectors
 
     volumes:
       - ./kafka-connect-jars:/connectors
-      - ./connect/connectors:/connectors-config
 
-  # -------------------------------------------------------
-  # CONTROL CENTER (GUI)
-  # -------------------------------------------------------
+  # -------------------------------
+  # CONTROL CENTER
+  # -------------------------------
   control-center:
     image: confluentinc/cp-enterprise-control-center:7.6.1
     container_name: control-center
@@ -107,11 +119,10 @@ services:
       CONTROL_CENTER_CONNECT_CLUSTER: http://connect:8083
       CONTROL_CENTER_KSQL_URL: http://ksqldb-server:8088
       CONTROL_CENTER_REPLICATION_FACTOR: 1
-      PORT: 9021
 
-  # -------------------------------------------------------
+  # -------------------------------
   # KSQLDB SERVER
-  # -------------------------------------------------------
+  # -------------------------------
   ksqldb-server:
     image: confluentinc/cp-ksqldb-server:7.6.1
     container_name: ksqldb-server
@@ -126,20 +137,20 @@ services:
       KSQL_KSQL_SERVICE_ID: "ksql-cluster"
       KSQL_KSQL_SCHEMA_REGISTRY_URL: http://schema-registry:8081
 
-  # -------------------------------------------------------
+  # -------------------------------
   # KSQL CLI
-  # -------------------------------------------------------
+  # -------------------------------
   ksqldb-cli:
     image: confluentinc/cp-ksqldb-cli:7.6.1
     container_name: ksqldb-cli
-    depends_on:
-      - ksqldb-server
     entrypoint: /bin/sh
     tty: true
+    depends_on:
+      - ksqldb-server
 
-  # -------------------------------------------------------
-  # KAFDROP (simple Kafka viewer)
-  # -------------------------------------------------------
+  # -------------------------------
+  # KAFDROP
+  # -------------------------------
   kafdrop:
     image: obsidiandynamics/kafdrop
     container_name: kafdrop
@@ -150,9 +161,9 @@ services:
     environment:
       KAFKA_BROKERCONNECT: kafka:9092
 
-  # -------------------------------------------------------
+  # -------------------------------
   # POSTGRES
-  # -------------------------------------------------------
+  # -------------------------------
   postgres:
     image: postgres:15
     container_name: postgres
@@ -165,9 +176,9 @@ services:
     volumes:
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
 
-  # -------------------------------------------------------
+  # -------------------------------
   # COUCHBASE
-  # -------------------------------------------------------
+  # -------------------------------
   couchbase:
     image: couchbase:community-7.2.0
     container_name: couchbase
@@ -175,9 +186,9 @@ services:
       - "8091-8094:8091-8094"
       - "11210:11210"
 
-  # -------------------------------------------------------
-  # ORDER PRODUCER (Python)
-  # -------------------------------------------------------
+  # -------------------------------
+  # ORDER PRODUCER
+  # -------------------------------
   order-producer:
     build: ./producer
     container_name: order-producer
@@ -186,9 +197,9 @@ services:
     environment:
       KAFKA_BOOTSTRAP: kafka:9092
 
-  # -------------------------------------------------------
+  # -------------------------------
   # PAYMENT CONSUMER
-  # -------------------------------------------------------
+  # -------------------------------
   payment-service:
     build: ./consumers/payment-service
     container_name: payment-service
@@ -197,9 +208,9 @@ services:
     environment:
       KAFKA_BOOTSTRAP: kafka:9092
 
-  # -------------------------------------------------------
+  # -------------------------------
   # FRAUD CONSUMER
-  # -------------------------------------------------------
+  # -------------------------------
   fraud-service:
     build: ./consumers/fraud-service
     container_name: fraud-service
@@ -208,9 +219,9 @@ services:
     environment:
       KAFKA_BOOTSTRAP: kafka:9092
 
-  # -------------------------------------------------------
+  # -------------------------------
   # ANALYTICS CONSUMER
-  # -------------------------------------------------------
+  # -------------------------------
   analytics-service:
     build: ./consumers/analytics-service
     container_name: analytics-service

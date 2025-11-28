@@ -4,42 +4,46 @@
 
 resource "aws_lb" "ecs_alb" {
   name               = "${local.project_name}-alb-main"
-  load_balancer_type = "application"
   internal           = false
+  load_balancer_type = "application"
 
-  security_groups = [local.alb_sg_id]
   subnets         = local.public_subnets
-}
+  security_groups = [local.alb_sg_id]
 
-###############################################
-# TARGET GROUP – FRONTEND
-###############################################
-
-resource "aws_lb_target_group" "frontend_tg" {
-  # use prefix so AWS generates a unique name, avoids collisions & length issues
-  name_prefix = "fe-"
-
-  port        = 80
-  protocol    = "HTTP"
-  target_type = "ip"
-  vpc_id      = local.vpc_id
-
-  health_check {
-    path                = "/"
-    protocol            = "HTTP"
-    matcher             = "200-399"
-    interval            = 30
-    unhealthy_threshold = 2
-    healthy_threshold   = 2
-    timeout             = 5
+  tags = {
+    Project = local.project_name
   }
 }
 
 ###############################################
-# LISTENER – HTTP 80
+# TARGET GROUP (for future web/frontend service)
 ###############################################
 
-resource "aws_lb_listener" "http" {
+resource "aws_lb_target_group" "frontend_tg" {
+  name        = "fe-${local.project_name}"
+  port        = 80
+  protocol    = "HTTP"
+  vpc_id      = local.vpc_id
+  target_type = "ip"  # ✅ for FARGATE
+
+  health_check {
+    path                = "/"
+    interval            = 30
+    timeout             = 5
+    healthy_threshold   = 3
+    unhealthy_threshold = 3
+  }
+
+  tags = {
+    Project = local.project_name
+  }
+}
+
+###############################################
+# LISTENER (HTTP :80)
+###############################################
+
+resource "aws_lb_listener" "http_listener" {
   load_balancer_arn = aws_lb.ecs_alb.arn
   port              = 80
   protocol          = "HTTP"
@@ -49,3 +53,4 @@ resource "aws_lb_listener" "http" {
     target_group_arn = aws_lb_target_group.frontend_tg.arn
   }
 }
+

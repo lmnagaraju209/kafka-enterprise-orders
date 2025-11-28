@@ -1,15 +1,23 @@
 {
-  "name": "couchbase-sink-order-analytics",
+  "name": "couchbase-sink",
   "config": {
     "connector.class": "com.couchbase.connect.kafka.CouchbaseSinkConnector",
     "tasks.max": "1",
-    "topics": "order-analytics",
-    "couchbase.bootstrap.servers": "couchbase",
-    "couchbase.bucket": "order_analytics",
+
+    "topics": "orders",
+
+    "couchbase.seed.nodes": "couchbase",
+    "couchbase.bucket": "default",
     "couchbase.username": "Administrator",
-    "couchbase.password": "password",
-    "value.converter": "org.apache.kafka.connect.storage.StringConverter",
-    "key.converter": "org.apache.kafka.connect.storage.StringConverter"
+    "couchbase.password": "Chicago26$",
+    "couchbase.scope": "_default",
+    "couchbase.collection": "_default",
+
+    "couchbase.document.id": "/id",
+
+    "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+    "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "value.converter.schemas.enable": "false"
   }
 }
 

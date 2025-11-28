@@ -1,0 +1,37 @@
+{
+  "name" : "kafka-connect-couchbase",
+  "version" : "4.1.10",
+  "title" : "Couchbase Connector",
+  "description" : "The official Couchbase connector developed by Couchbase, Inc.",
+  "owner" : {
+    "username" : "couchbase",
+    "type" : "organization",
+    "name" : "Couchbase, Inc.",
+    "url" : "https://couchbase.com/",
+    "logo" : "assets/couchbase_logo.png"
+  },
+  "support" : {
+    "summary" : "Join us on the Couchbase Forums where we provide support free of charge on a best effort basis. Couchbase Enterprise Edition subscribers receive additional support through their normal support channel.",
+    "url" : "https://forums.couchbase.com/c/Kafka-Connector/27",
+    "logo" : "assets/couchbase_logo.png",
+    "provider_name" : "Couchbase, Inc."
+  },
+  "tags" : [ "database", "Couchbase" ],
+  "requirements" : [ "Couchbase Server 5.0 or later", "Confluent Platform 5.4 or later" ],
+  "features" : {
+    "supported_encodings" : [ "any" ],
+    "single_message_transforms" : true,
+    "confluent_control_center_integration" : true,
+    "kafka_connect_api" : true
+  },
+  "logo" : "assets/couchbase_logo.png",
+  "documentation_url" : "https://docs.couchbase.com/kafka-connector/current/",
+  "source_url" : "https://github.com/couchbase/kafka-connect-couchbase",
+  "docker_image" : { },
+  "license" : [ {
+    "name" : "Apache License 2.0",
+    "url" : "https://www.apache.org/licenses/LICENSE-2.0.html"
+  } ],
+  "component_types" : [ "source", "transform", "sink" ],
+  "release_date" : "2022-12-17"
+}
