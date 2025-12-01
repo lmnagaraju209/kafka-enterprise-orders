@@ -9,7 +9,7 @@ env:
   AWS_REGION: us-east-2
   AWS_DEFAULT_REGION: us-east-2
 
-  # ===== REQUIRED TERRAFORM VARIABLES =====
+  # Terraform required variables
   TF_VAR_aws_region: us-east-2
   TF_VAR_project_name: kafka-enterprise-orders
 
@@ -26,9 +26,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ----------------------------------
-      # Authenticate to AWS
-      # ----------------------------------
+      # Configure AWS credentials (IAM user you created)
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -36,9 +34,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-2
 
-      # ----------------------------------
       # Log in to GitHub Container Registry
-      # ----------------------------------
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -46,42 +42,45 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # ----------------------------------
-      # Build and Push each service
-      # ----------------------------------
+      # Normalize username to lowercase for GHCR
+      - name: Set lowercase registry username
+        run: |
+          echo "USERNAME_LOWER=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
+      # -------- BUILD & PUSH IMAGES --------
+
       - name: Build and push Producer
         run: |
-          docker build -t ghcr.io/${{ github.repository_owner }}/kafka-enterprise-orders-producer:latest producer
-          docker push ghcr.io/${{ github.repository_owner }}/kafka-enterprise-orders-producer:latest
+          docker build -t ghcr.io/${{ env.USERNAME_LOWER }}/kafka-enterprise-orders-producer:latest producer
+          docker push ghcr.io/${{ env.USERNAME_LOWER }}/kafka-enterprise-orders-producer:latest
 
       - name: Build and push Fraud Service
         run: |
-          docker build -t ghcr.io/${{ github.repository_owner }}/kafka-enterprise-orders-fraud-service:latest consumers/fraud-service
-          docker push ghcr.io/${{ github.repository_owner }}/kafka-enterprise-orders-fraud-service:latest
+          docker build -t ghcr.io/${{ env.USERNAME_LOWER }}/kafka-enterprise-orders-fraud-service:latest consumers/fraud-service
+          docker push ghcr.io/${{ env.USERNAME_LOWER }}/kafka-enterprise-orders-fraud-service:latest
 
       - name: Build and push Payment Service
         run: |
-          docker build -t ghcr.io/${{ github.repository_owner }}/kafka-enterprise-orders-payment-service:latest consumers/payment-service
-          docker push ghcr.io/${{ github.repository_owner }}/kafka-enterprise-orders-payment-service:latest
+          docker build -t ghcr.io/${{ env.USERNAME_LOWER }}/kafka-enterprise-orders-payment-service:latest consumers/payment-service
+          docker push ghcr.io/${{ env.USERNAME_LOWER }}/kafka-enterprise-orders-payment-service:latest
 
       - name: Build and push Analytics Service
         run: |
-          docker build -t ghcr.io/${{ github.repository_owner }}/kafka-enterprise-orders-analytics-service:latest consumers/analytics-service
-          docker push ghcr.io/${{ github.repository_owner }}/kafka-enterprise-orders-analytics-service:latest
+          docker build -t ghcr.io/${{ env.USERNAME_LOWER }}/kafka-enterprise-orders-analytics-service:latest consumers/analytics-service
+          docker push ghcr.io/${{ env.USERNAME_LOWER }}/kafka-enterprise-orders-analytics-service:latest
 
       - name: Build and push Web Backend
         run: |
-          docker build -t ghcr.io/${{ github.repository_owner }}/kafka-enterprise-orders-web-backend:latest web/backend
-          docker push ghcr.io/${{ github.repository_owner }}/kafka-enterprise-orders-web-backend:latest
+          docker build -t ghcr.io/${{ env.USERNAME_LOWER }}/kafka-enterprise-orders-web-backend:latest web/backend
+          docker push ghcr.io/${{ env.USERNAME_LOWER }}/kafka-enterprise-orders-web-backend:latest
 
       - name: Build and push Web Frontend
         run: |
-          docker build -t ghcr.io/${{ github.repository_owner }}/kafka-enterprise-orders-web-frontend:latest web/frontend
-          docker push ghcr.io/${{ github.repository_owner }}/kafka-enterprise-orders-web-frontend:latest
+          docker build -t ghcr.io/${{ env.USERNAME_LOWER }}/kafka-enterprise-orders-web-frontend:latest web/frontend
+          docker push ghcr.io/${{ env.USERNAME_LOWER }}/kafka-enterprise-orders-web-frontend:latest
 
-      # ----------------------------------
-      # Terraform Init / Plan / Apply
-      # ----------------------------------
+      # -------- TERRAFORM --------
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
 
@@ -92,16 +91,25 @@ jobs:
       - name: Terraform Plan
         working-directory: infra/terraform
         env:
-          TF_VAR_container_image_producer: ghcr.io/${{ github.repository_owner }}/kafka-enterprise-orders-producer:latest
-          TF_VAR_container_image_fraud: ghcr.io/${{ github.repository_owner }}/kafka-enterprise-orders-fraud-service:latest
-          TF_VAR_container_image_payment: ghcr.io/${{ github.repository_owner }}/kafka-enterprise-orders-payment-service:latest
-          TF_VAR_container_image_analytics: ghcr.io/${{ github.repository_owner }}/kafka-enterprise-orders-analytics-service:latest
-          TF_VAR_container_image_backend: ghcr.io/${{ github.repository_owner }}/kafka-enterprise-orders-web-backend:latest
-          TF_VAR_container_image_frontend: ghcr.io/${{ github.repository_owner }}/kafka-enterprise-orders-web-frontend:latest
+          # core variables (reinforced here, though also set at job level)
+          TF_VAR_aws_region: us-east-2
+          TF_VAR_project_name: kafka-enterprise-orders
+
+          # image variables (must match variables.tf)
+          TF_VAR_container_image_producer: ghcr.io/${{ env.USERNAME_LOWER }}/kafka-enterprise-orders-producer:latest
+          TF_VAR_container_image_fraud: ghcr.io/${{ env.USERNAME_LOWER }}/kafka-enterprise-orders-fraud-service:latest
+          TF_VAR_container_image_payment: ghcr.io/${{ env.USERNAME_LOWER }}/kafka-enterprise-orders-payment-service:latest
+          TF_VAR_container_image_analytics: ghcr.io/${{ env.USERNAME_LOWER }}/kafka-enterprise-orders-analytics-service:latest
+          TF_VAR_container_image_backend: ghcr.io/${{ env.USERNAME_LOWER }}/kafka-enterprise-orders-web-backend:latest
+          TF_VAR_container_image_frontend: ghcr.io/${{ env.USERNAME_LOWER }}/kafka-enterprise-orders-web-frontend:latest
+
+          # Confluent Cloud + RDS
           TF_VAR_confluent_bootstrap_servers: ${{ secrets.CONFLUENT_BOOTSTRAP_SERVERS }}
           TF_VAR_confluent_api_key: ${{ secrets.CONFLUENT_API_KEY }}
           TF_VAR_confluent_api_secret: ${{ secrets.CONFLUENT_API_SECRET }}
           TF_VAR_rds_password: ${{ secrets.RDS_PASSWORD }}
+
+          # Existing network resources
           TF_VAR_existing_vpc_id: ${{ secrets.EXISTING_VPC_ID }}
           TF_VAR_existing_private_subnet_ids: ${{ secrets.EXISTING_PRIVATE_SUBNET_IDS }}
           TF_VAR_existing_public_subnet_ids: ${{ secrets.EXISTING_PUBLIC_SUBNET_IDS }}
@@ -113,5 +121,27 @@ jobs:
       - name: Terraform Apply
         if: github.ref == 'refs/heads/main'
         working-directory: infra/terraform
+        env:
+          TF_VAR_aws_region: us-east-2
+          TF_VAR_project_name: kafka-enterprise-orders
+
+          TF_VAR_container_image_producer: ghcr.io/${{ env.USERNAME_LOWER }}/kafka-enterprise-orders-producer:latest
+          TF_VAR_container_image_fraud: ghcr.io/${{ env.USERNAME_LOWER }}/kafka-enterprise-orders-fraud-service:latest
+          TF_VAR_container_image_payment: ghcr.io/${{ env.USERNAME_LOWER }}/kafka-enterprise-orders-payment-service:latest
+          TF_VAR_container_image_analytics: ghcr.io/${{ env.USERNAME_LOWER }}/kafka-enterprise-orders-analytics-service:latest
+          TF_VAR_container_image_backend: ghcr.io/${{ env.USERNAME_LOWER }}/kafka-enterprise-orders-web-backend:latest
+          TF_VAR_container_image_frontend: ghcr.io/${{ env.USERNAME_LOWER }}/kafka-enterprise-orders-web-frontend:latest
+
+          TF_VAR_confluent_bootstrap_servers: ${{ secrets.CONFLUENT_BOOTSTRAP_SERVERS }}
+          TF_VAR_confluent_api_key: ${{ secrets.CONFLUENT_API_KEY }}
+          TF_VAR_confluent_api_secret: ${{ secrets.CONFLUENT_API_SECRET }}
+          TF_VAR_rds_password: ${{ secrets.RDS_PASSWORD }}
+
+          TF_VAR_existing_vpc_id: ${{ secrets.EXISTING_VPC_ID }}
+          TF_VAR_existing_private_subnet_ids: ${{ secrets.EXISTING_PRIVATE_SUBNET_IDS }}
+          TF_VAR_existing_public_subnet_ids: ${{ secrets.EXISTING_PUBLIC_SUBNET_IDS }}
+          TF_VAR_existing_rds_sg_id: ${{ secrets.EXISTING_RDS_SG_ID }}
+          TF_VAR_existing_alb_sg_id: ${{ secrets.EXISTING_ALB_SG_ID }}
+          TF_VAR_existing_ecs_tasks_sg_id: ${{ secrets.EXISTING_ECS_TASKS_SG_ID }}
         run: terraform apply -auto-approve tfplan
 
