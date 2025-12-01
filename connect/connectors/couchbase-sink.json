@@ -4,16 +4,16 @@
     "connector.class": "com.couchbase.connect.kafka.CouchbaseSinkConnector",
     "tasks.max": "1",
 
-    "topics": "orders",
+    "topics": "test-orders",
 
     "couchbase.seed.nodes": "couchbase",
-    "couchbase.bucket": "default",
+    "couchbase.bucket": "orders",
     "couchbase.username": "Administrator",
     "couchbase.password": "Chicago26$",
     "couchbase.scope": "_default",
     "couchbase.collection": "_default",
 
-    "couchbase.document.id": "/id",
+    "couchbase.document.id": "/orderId",
 
     "key.converter": "org.apache.kafka.connect.storage.StringConverter",
     "value.converter": "org.apache.kafka.connect.json.JsonConverter",

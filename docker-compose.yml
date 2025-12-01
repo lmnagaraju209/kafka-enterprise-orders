@@ -78,9 +78,6 @@ services:
       CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 1
       CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 1
 
-      # ---------------------------
-      # IMPORTANT: JSON WITHOUT SCHEMAS
-      # ---------------------------
       CONNECT_KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
       CONNECT_KEY_CONVERTER_SCHEMAS_ENABLE: "false"
 
@@ -177,14 +174,19 @@ services:
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
 
   # -------------------------------
-  # COUCHBASE
+  # COUCHBASE (FIXED PERSISTENCE)
   # -------------------------------
   couchbase:
     image: couchbase:community-7.2.0
     container_name: couchbase
     ports:
-      - "8091-8094:8091-8094"
+      - "8091-8096:8091-8096"
       - "11210:11210"
+    environment:
+      COUCHBASE_ADMINISTRATOR_USERNAME: Administrator
+      COUCHBASE_ADMINISTRATOR_PASSWORD: password
+    volumes:
+      - couchbase_data:/opt/couchbase/var
 
   # -------------------------------
   # ORDER PRODUCER
@@ -231,4 +233,10 @@ services:
       - couchbase
     environment:
       KAFKA_BOOTSTRAP: kafka:9092
+
+# -------------------------------
+# VOLUMES
+# -------------------------------
+volumes:
+  couchbase_data:
 
