@@ -9,7 +9,6 @@ env:
   AWS_REGION: us-east-2
   AWS_DEFAULT_REGION: us-east-2
 
-  # Terraform required variables
   TF_VAR_aws_region: us-east-2
   TF_VAR_project_name: kafka-enterprise-orders
 
@@ -23,10 +22,11 @@ jobs:
       id-token: write
 
     steps:
+      # Checkout repo
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Configure AWS credentials (IAM user you created)
+      # Configure AWS credentials
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -34,7 +34,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-2
 
-      # Log in to GitHub Container Registry
+      # GHCR Login
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -42,12 +42,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Normalize username to lowercase for GHCR
+      # Normalize username to lowercase
       - name: Set lowercase registry username
         run: |
           echo "USERNAME_LOWER=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
-      # -------- BUILD & PUSH IMAGES --------
+      ###############################################
+      # Build & Push All Docker Images
+      ###############################################
 
       - name: Build and push Producer
         run: |
@@ -79,23 +81,73 @@ jobs:
           docker build -t ghcr.io/${{ env.USERNAME_LOWER }}/kafka-enterprise-orders-web-frontend:latest web/frontend
           docker push ghcr.io/${{ env.USERNAME_LOWER }}/kafka-enterprise-orders-web-frontend:latest
 
-      # -------- TERRAFORM --------
+
+
+      ###############################################
+      # TERRAFORM SECTION
+      ###############################################
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
 
+
+      ###################################################
+      # DEBUG BLOCK — PRINT EXACT SECRETS & VALIDATE THEM
+      ###################################################
+      - name: Debug Network Secrets
+        env:
+          VPC: ${{ secrets.EXISTING_VPC_ID }}
+          PRIV: ${{ secrets.EXISTING_PRIVATE_SUBNET_IDS }}
+          PUB: ${{ secrets.EXISTING_PUBLIC_SUBNET_IDS }}
+          ALB: ${{ secrets.EXISTING_ALB_SG_ID }}
+          ECS: ${{ secrets.EXISTING_ECS_TASKS_SG_ID }}
+          RDS: ${{ secrets.EXISTING_RDS_SG_ID }}
+        run: |
+          echo "==== DEBUG: PRINTING SECRETS ===="
+          echo "VPC: >>>$VPC<<<"
+          echo "PRIVATE SUBNETS RAW: >>>$PRIV<<<"
+          echo "PUBLIC SUBNETS RAW: >>>$PUB<<<"
+          echo "ALB SG: >>>$ALB<<<"
+          echo "ECS SG: >>>$ECS<<<"
+          echo "RDS SG: >>>$RDS<<<"
+
+          echo "======== VALIDATING VALUES ========"
+          if [[ "$VPC" == "" || "$VPC" == "*"* ]]; then
+            echo "❌ ERROR: VPC ID INVALID"; exit 1;
+          fi
+
+          if [[ "$ALB" == "" || "$ALB" == "*"* ]]; then
+            echo "❌ ERROR: ALB SG INVALID"; exit 1;
+          fi
+
+          if [[ "$ECS" == "" || "$ECS" == "*"* ]]; then
+            echo "❌ ERROR: ECS SG INVALID"; exit 1;
+          fi
+
+          if [[ "$RDS" == "" || "$RDS" == "*"* ]]; then
+            echo "❌ ERROR: RDS SG INVALID"; exit 1;
+          fi
+
+          echo "==== VALIDATION SUCCESS ===="
+
+
+      ###############################################
+      # Terraform INIT
+      ###############################################
       - name: Terraform Init
         working-directory: infra/terraform
         run: terraform init
 
+
+      ###############################################
+      # Terraform PLAN
+      ###############################################
       - name: Terraform Plan
         working-directory: infra/terraform
         env:
-          # core variables (reinforced here, though also set at job level)
           TF_VAR_aws_region: us-east-2
           TF_VAR_project_name: kafka-enterprise-orders
 
-          # image variables (must match variables.tf)
           TF_VAR_container_image_producer: ghcr.io/${{ env.USERNAME_LOWER }}/kafka-enterprise-orders-producer:latest
           TF_VAR_container_image_fraud: ghcr.io/${{ env.USERNAME_LOWER }}/kafka-enterprise-orders-fraud-service:latest
           TF_VAR_container_image_payment: ghcr.io/${{ env.USERNAME_LOWER }}/kafka-enterprise-orders-payment-service:latest
@@ -103,13 +155,11 @@ jobs:
           TF_VAR_container_image_backend: ghcr.io/${{ env.USERNAME_LOWER }}/kafka-enterprise-orders-web-backend:latest
           TF_VAR_container_image_frontend: ghcr.io/${{ env.USERNAME_LOWER }}/kafka-enterprise-orders-web-frontend:latest
 
-          # Confluent Cloud + RDS
           TF_VAR_confluent_bootstrap_servers: ${{ secrets.CONFLUENT_BOOTSTRAP_SERVERS }}
           TF_VAR_confluent_api_key: ${{ secrets.CONFLUENT_API_KEY }}
           TF_VAR_confluent_api_secret: ${{ secrets.CONFLUENT_API_SECRET }}
           TF_VAR_rds_password: ${{ secrets.RDS_PASSWORD }}
 
-          # Existing network resources
           TF_VAR_existing_vpc_id: ${{ secrets.EXISTING_VPC_ID }}
           TF_VAR_existing_private_subnet_ids: ${{ secrets.EXISTING_PRIVATE_SUBNET_IDS }}
           TF_VAR_existing_public_subnet_ids: ${{ secrets.EXISTING_PUBLIC_SUBNET_IDS }}
@@ -118,6 +168,10 @@ jobs:
           TF_VAR_existing_ecs_tasks_sg_id: ${{ secrets.EXISTING_ECS_TASKS_SG_ID }}
         run: terraform plan -out=tfplan
 
+
+      ###############################################
+      # Terraform APPLY
+      ###############################################
       - name: Terraform Apply
         if: github.ref == 'refs/heads/main'
         working-directory: infra/terraform
@@ -143,5 +197,5 @@ jobs:
           TF_VAR_existing_rds_sg_id: ${{ secrets.EXISTING_RDS_SG_ID }}
           TF_VAR_existing_alb_sg_id: ${{ secrets.EXISTING_ALB_SG_ID }}
           TF_VAR_existing_ecs_tasks_sg_id: ${{ secrets.EXISTING_ECS_TASKS_SG_ID }}
-        run: terraform apply -auto-approve tfplan
 
+        run: terraform apply -auto-approve tfplan
