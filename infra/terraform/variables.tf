@@ -1,6 +1,7 @@
-###############
-# GLOBAL VARS
-###############
+###############################################
+# GLOBAL INPUT VARIABLES
+###############################################
+
 variable "aws_region" {
   type = string
 }
@@ -10,32 +11,6 @@ variable "project_name" {
   default = "kafka-enterprise-orders"
 }
 
-###############
-# NETWORK VARS
-###############
-variable "vpc_id" {
-  type = string
-}
-
-variable "public_subnets" {
-  type = list(string)
-}
-
-variable "private_subnets" {
-  type = list(string)
-}
-
-variable "alb_sg_id" {
-  type = string
-}
-
-variable "ecs_tasks_sg_id" {
-  type = string
-}
-
-###############
-# IMAGES
-###############
 variable "container_image_producer" {
   type = string
 }
@@ -60,9 +35,6 @@ variable "container_image_frontend" {
   type = string
 }
 
-###############
-# KAFKA / CONFLUENT
-###############
 variable "confluent_bootstrap_servers" {
   type = string
 }
@@ -75,11 +47,36 @@ variable "confluent_api_secret" {
   type = string
 }
 
-###############
-# RDS
-###############
 variable "rds_password" {
   type      = string
   sensitive = true
+}
+
+###############################################
+# EXISTING AWS INFRASTRUCTURE VARIABLES
+###############################################
+
+variable "existing_vpc_id" {
+  type = string
+}
+
+variable "existing_public_subnet_ids" {
+  type = list(string)
+}
+
+variable "existing_private_subnet_ids" {
+  type = list(string)
+}
+
+variable "existing_alb_sg_id" {
+  type = string
+}
+
+variable "existing_ecs_tasks_sg_id" {
+  type = string
+}
+
+variable "existing_rds_sg_id" {
+  type = string
 }
 
