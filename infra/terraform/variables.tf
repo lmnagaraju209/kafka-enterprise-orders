@@ -1,114 +1,77 @@
 ###############################################
-# PROJECT METADATA
+# GENERAL
 ###############################################
 
 variable "project_name" {
-  description = "Project name used for naming ECS, ALB, TG, and other resources"
+  description = "Project name"
   type        = string
-  default     = "kafka-enterprise-orders"
 }
 
 variable "aws_region" {
-  description = "AWS region for all resources"
-  type        = string
-  default     = "us-east-2"
-}
-
-###############################################
-# CONTAINER IMAGES
-###############################################
-
-variable "container_image_producer" {
-  description = "Docker image for producer service"
-  type        = string
-}
-
-variable "container_image_fraud" {
-  description = "Docker image for fraud service"
-  type        = string
-}
-
-variable "container_image_payment" {
-  description = "Docker image for payment service"
-  type        = string
-}
-
-variable "container_image_analytics" {
-  description = "Docker image for analytics service"
-  type        = string
-}
-
-variable "container_image_backend" {
-  description = "Docker image for backend service"
-  type        = string
-}
-
-variable "container_image_frontend" {
-  description = "Docker image for frontend service"
+  description = "AWS Region"
   type        = string
 }
 
 ###############################################
-# CONFLUENT CONNECTION VALUES
+# IMAGES
 ###############################################
 
-variable "confluent_bootstrap_servers" {
-  description = "Confluent Cloud bootstrap servers"
-  type        = string
-}
-
-variable "confluent_api_key" {
-  description = "Confluent API Key"
-  type        = string
-}
-
-variable "confluent_api_secret" {
-  description = "Confluent API Secret"
-  type        = string
-  sensitive   = true
-}
+variable "container_image_producer"   { type = string }
+variable "container_image_fraud"      { type = string }
+variable "container_image_payment"    { type = string }
+variable "container_image_analytics"  { type = string }
+variable "container_image_backend"    { type = string }
+variable "container_image_frontend"   { type = string }
 
 ###############################################
-# POSTGRES / RDS
-###############################################
-
-variable "rds_password" {
-  description = "Password for RDS PostgreSQL"
-  type        = string
-  sensitive   = true
-}
-
-###############################################
-# EXISTING NETWORK (STATIC)
+# NETWORK INPUTS
 ###############################################
 
 variable "existing_vpc_id" {
-  description = "Existing VPC ID"
-  type        = string
+  type = string
 }
 
 variable "existing_public_subnet_ids" {
-  description = "List of existing PUBLIC subnets"
-  type        = list(string)
+  type = list(string)
 }
 
 variable "existing_private_subnet_ids" {
-  description = "List of existing PRIVATE subnets"
-  type        = list(string)
+  type = list(string)
 }
 
 variable "existing_alb_sg_id" {
-  description = "Existing ALB Security Group"
-  type        = string
+  type = string
 }
 
 variable "existing_ecs_tasks_sg_id" {
-  description = "Existing ECS Tasks Security Group"
-  type        = string
+  type = string
 }
 
 variable "existing_rds_sg_id" {
-  description = "Existing RDS Security Group"
-  type        = string
+  type = string
+}
+
+###############################################
+# DATABASE
+###############################################
+
+variable "rds_password" {
+  type = string
+}
+
+###############################################
+# KAFKA
+###############################################
+
+variable "confluent_bootstrap_servers" {
+  type = string
+}
+
+variable "confluent_api_key" {
+  type = string
+}
+
+variable "confluent_api_secret" {
+  type = string
 }
 

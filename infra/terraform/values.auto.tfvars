@@ -1,5 +1,5 @@
 ###############################################
-# NETWORK VALUES FOR ECS (STATIC)
+# NETWORK VALUES (STATIC)
 ###############################################
 
 existing_vpc_id = "vpc-049d13a5b8edff90c"
@@ -14,7 +14,7 @@ existing_private_subnet_ids = [
   "subnet-0077b9567f697e02a"
 ]
 
-existing_alb_sg_id       = "sg-08103fa8820178555"
-existing_ecs_tasks_sg_id = "sg-0b61fac6ad3b15b1c"
-existing_rds_sg_id       = "sg-0a4a71bbaade15e8f"
+existing_alb_sg_id       = "sg-01f5a50e367b80a8a"
+existing_ecs_tasks_sg_id = "sg-063408014f4646f7a"
+existing_rds_sg_id       = "sg-0017c926dac825e6a"
 
