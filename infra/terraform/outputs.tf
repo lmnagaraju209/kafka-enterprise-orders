@@ -1,16 +1,20 @@
 output "ecs_cluster_name" {
-  value = aws_ecs_cluster.this.name
+  description = "ECS cluster name"
+  value       = aws_ecs_cluster.main.name
 }
 
 output "ecs_cluster_arn" {
-  value = aws_ecs_cluster.this.arn
+  description = "ECS cluster ARN"
+  value       = aws_ecs_cluster.main.arn
 }
 
 output "alb_dns_name" {
-  value = aws_lb.ecs_alb.dns_name
+  description = "Public DNS name of the ALB"
+  value       = aws_lb.ecs_alb.dns_name
 }
 
 output "alb_arn" {
-  value = aws_lb.ecs_alb.arn
+  description = "ARN of the ALB"
+  value       = aws_lb.ecs_alb.arn
 }
 
