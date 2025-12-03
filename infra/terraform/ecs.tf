@@ -1,18 +1,15 @@
 ###############################################
 # ECS CLUSTER
 ###############################################
-# Reuse the original name "main" so Terraform
-# stops trying to destroy/recreate another cluster.
-resource "aws_ecs_cluster" "main" {
+resource "aws_ecs_cluster" "this" {
   name = "${var.project_name}-cluster"
 }
 
 ###############################################
 # IAM ROLE FOR ECS TASK EXECUTION
 ###############################################
-# Keep the same logical name as before to match state.
-resource "aws_iam_role" "ecs_task_role" {
-  name = "${var.project_name}-ecs-task-role"
+resource "aws_iam_role" "ecs_task_execution" {
+  name = "${var.project_name}-ecs-task-execution-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
@@ -24,21 +21,20 @@ resource "aws_iam_role" "ecs_task_role" {
   })
 }
 
-resource "aws_iam_role_policy_attachment" "ecs_task_role_attach" {
-  role       = aws_iam_role.ecs_task_role.name
+resource "aws_iam_role_policy_attachment" "ecs_task_execution_1" {
+  role       = aws_iam_role.ecs_task_execution.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
 ###############################################
 # SECURITY GROUP FOR ECS TASKS
 ###############################################
-# New SG name to avoid conflict with any old ones.
 resource "aws_security_group" "ecs_tasks" {
   name        = "${var.project_name}-ecs-tasks-sg"
   description = "Security group for ECS tasks"
   vpc_id      = local.vpc_id
 
-  # Allow ALB to reach tasks on 8080
+  # ALB -> ECS tasks on 8080
   ingress {
     description     = "Allow ALB to reach tasks"
     from_port       = 8080
@@ -47,22 +43,13 @@ resource "aws_security_group" "ecs_tasks" {
     security_groups = [local.alb_sg]
   }
 
-  # Allow tasks to talk out (e.g. to Confluent Cloud)
+  # ECS tasks -> Internet (Confluent Cloud, etc.)
   egress {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-}
-
-###############################################
-# CLOUDWATCH LOG GROUP FOR PRODUCER
-###############################################
-# Use a NEW name so we don't hit "already exists".
-resource "aws_cloudwatch_log_group" "producer_lg" {
-  name              = "/ecs/${var.project_name}-producer-app"
-  retention_in_days = 1
 }
 
 ###############################################
@@ -74,7 +61,7 @@ resource "aws_ecs_task_definition" "producer" {
   memory                   = "512"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
-  execution_role_arn       = aws_iam_role.ecs_task_role.arn
+  execution_role_arn       = aws_iam_role.ecs_task_execution.arn
 
   container_definitions = jsonencode([
     {
@@ -101,7 +88,7 @@ resource "aws_ecs_task_definition" "producer" {
       logConfiguration = {
         logDriver = "awslogs",
         options = {
-          awslogs-group         = aws_cloudwatch_log_group.producer_lg.name
+          awslogs-group         = "/ecs/${var.project_name}-producer"
           awslogs-region        = var.aws_region
           awslogs-stream-prefix = "ecs"
         }
@@ -111,19 +98,28 @@ resource "aws_ecs_task_definition" "producer" {
 }
 
 ###############################################
+# CLOUDWATCH LOG GROUP FOR PRODUCER
+###############################################
+resource "aws_cloudwatch_log_group" "producer_lg" {
+  name              = "/ecs/${var.project_name}-producer"
+  retention_in_days = 1
+}
+
+###############################################
 # ECS SERVICE – PRODUCER
 ###############################################
 resource "aws_ecs_service" "producer" {
   name            = "${var.project_name}-producer-svc"
-  cluster         = aws_ecs_cluster.main.id
+  cluster         = aws_ecs_cluster.this.id
   task_definition = aws_ecs_task_definition.producer.arn
   desired_count   = 1
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets         = local.private_subnets
+    # IMPORTANT: use PUBLIC subnets and give PUBLIC IP for internet access
+    subnets         = local.public_subnets
     security_groups = [aws_security_group.ecs_tasks.id]
-    assign_public_ip = false
+    assign_public_ip = true
   }
 
   load_balancer {
@@ -133,8 +129,9 @@ resource "aws_ecs_service" "producer" {
   }
 
   depends_on = [
-    aws_iam_role_policy_attachment.ecs_task_role_attach,
+    aws_iam_role_policy_attachment.ecs_task_execution_1,
     aws_cloudwatch_log_group.producer_lg,
+    aws_lb_target_group.producer_tg,
     aws_lb_listener.http
   ]
 }
