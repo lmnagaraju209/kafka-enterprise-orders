@@ -30,15 +30,15 @@ resource "aws_iam_role_policy_attachment" "ecs_task_execution_1" {
 # SECURITY GROUP FOR ECS TASKS
 ###############################################
 resource "aws_security_group" "ecs_tasks" {
-  name        = "${var.project_name}-ecs-tasks-sg"
+  name        = "${var.project_name}-ecs-tasks"
   description = "Security group for ECS tasks"
   vpc_id      = local.vpc_id
 
   ingress {
-    description    = "Allow ALB to reach tasks"
-    from_port      = 8080
-    to_port        = 8080
-    protocol       = "tcp"
+    description = "Allow ALB to reach ECS"
+    from_port   = 8080
+    to_port     = 8080
+    protocol    = "tcp"
     security_groups = [local.alb_sg]
   }
 
@@ -51,7 +51,7 @@ resource "aws_security_group" "ecs_tasks" {
 }
 
 ###############################################
-# ECS TASK DEFINITION FOR PRODUCER
+# TASK DEFINITION
 ###############################################
 resource "aws_ecs_task_definition" "producer" {
   family                   = "${var.project_name}-producer"
@@ -63,8 +63,8 @@ resource "aws_ecs_task_definition" "producer" {
 
   container_definitions = jsonencode([
     {
-      name      = "producer"
-      image     = var.container_image_producer
+      name  = "producer"
+      image = var.container_image_producer
       essential = true
 
       environment = [
@@ -96,7 +96,7 @@ resource "aws_ecs_task_definition" "producer" {
 }
 
 ###############################################
-# CLOUDWATCH LOG GROUP
+# LOG GROUP
 ###############################################
 resource "aws_cloudwatch_log_group" "producer_lg" {
   name              = "/ecs/${var.project_name}-producer"
@@ -104,7 +104,7 @@ resource "aws_cloudwatch_log_group" "producer_lg" {
 }
 
 ###############################################
-# ECS SERVICE FOR PRODUCER
+# ECS SERVICE
 ###############################################
 resource "aws_ecs_service" "producer" {
   name            = "${var.project_name}-producer"

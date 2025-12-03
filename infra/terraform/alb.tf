@@ -2,7 +2,7 @@
 # APPLICATION LOAD BALANCER
 ###############################################
 resource "aws_lb" "ecs_alb" {
-  name               = "${local.project_name}-alb-main"
+  name               = "${local.project_name}-alb"
   internal           = false
   load_balancer_type = "application"
   security_groups    = [var.alb_sg_id]
@@ -10,10 +10,10 @@ resource "aws_lb" "ecs_alb" {
 }
 
 ###############################################
-# TARGET GROUP FOR PRODUCER SERVICE
+# TARGET GROUP (short name, 32 chars limit)
 ###############################################
 resource "aws_lb_target_group" "producer_tg" {
-  name        = "${var.project_name}-producer-tg"
+  name        = "keo-prod-tg"       # <= FIXED
   port        = 8080
   protocol    = "HTTP"
   target_type = "ip"
@@ -30,7 +30,7 @@ resource "aws_lb_target_group" "producer_tg" {
 }
 
 ###############################################
-# LISTENER FOR PORT 80
+# LISTENER
 ###############################################
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.ecs_alb.arn
