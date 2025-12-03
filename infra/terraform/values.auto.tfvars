@@ -14,7 +14,7 @@ existing_private_subnet_ids = [
   "subnet-0077b9567f697e02a"
 ]
 
-existing_alb_sg_id       = "sg-REPLACE_ALB"
-existing_ecs_tasks_sg_id = "sg-REPLACE_ECS"
-existing_rds_sg_id       = "sg-REPLACE_RDS"
+existing_alb_sg_id       = "sg-08103fa8820178555"
+existing_ecs_tasks_sg_id = "sg-0b61fac6ad3b15b1c"
+existing_rds_sg_id       = "sg-0a4a71bbaade15e8f"
 

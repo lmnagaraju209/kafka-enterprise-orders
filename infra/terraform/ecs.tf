@@ -4,36 +4,25 @@
 
 resource "aws_ecs_cluster" "main" {
   name = "${local.project_name}-cluster"
-
-  setting {
-    name  = "containerInsights"
-    value = "enabled"
-  }
-
-  tags = {
-    Project = local.project_name
-  }
 }
 
 ###############################################
-# IAM ROLE FOR TASK EXECUTION
+# IAM ROLE FOR ECS TASKS
 ###############################################
 
 resource "aws_iam_role" "ecs_task_role" {
   name = "${local.project_name}-ecs-task-role"
 
   assume_role_policy = jsonencode({
-    Version = "2012-10-17"
+    Version = "2012-10-17",
     Statement = [{
-      Action    = "sts:AssumeRole"
-      Effect    = "Allow"
-      Principal = { Service = "ecs-tasks.amazonaws.com" }
+      Action = "sts:AssumeRole",
+      Effect = "Allow",
+      Principal = {
+        Service = "ecs-tasks.amazonaws.com"
+      }
     }]
   })
-
-  tags = {
-    Project = local.project_name
-  }
 }
 
 resource "aws_iam_role_policy_attachment" "ecs_task_role_attach" {
@@ -42,169 +31,151 @@ resource "aws_iam_role_policy_attachment" "ecs_task_role_attach" {
 }
 
 ###############################################
+# COMMON NETWORK CONFIG
+###############################################
+
+locals {
+  private_subnets = var.existing_private_subnet_ids
+  ecs_sg          = var.existing_ecs_tasks_sg_id
+}
+
+###############################################
 # TASK DEFINITIONS
 ###############################################
 
-### -------- PRODUCER -------- ###
+# PRODUCER
 resource "aws_ecs_task_definition" "producer" {
   family                   = "${local.project_name}-producer"
+  requires_compatibilities = ["FARGATE"]
+  network_mode             = "awsvpc"
   cpu                      = "256"
   memory                   = "512"
-  network_mode             = "awsvpc"
-  requires_compatibilities = ["FARGATE"]
   execution_role_arn       = aws_iam_role.ecs_task_role.arn
   task_role_arn            = aws_iam_role.ecs_task_role.arn
 
   container_definitions = jsonencode([{
-    name      = "producer"
-    image     = var.container_image_producer
+    name  = "producer"
+    image = var.container_image_producer
     essential = true
 
     environment = [
-      { name = "KAFKA_BROKER", value = var.confluent_bootstrap_servers },
-      { name = "ORDERS_TOPIC", value = "orders" },
-      { name = "ORDER_PRODUCER_INTERVAL_SECONDS", value = "3" }
+      { name = "BOOTSTRAP_SERVERS", value = var.confluent_bootstrap_servers },
+      { name = "CONFLUENT_API_KEY", value = var.confluent_api_key },
+      { name = "CONFLUENT_API_SECRET", value = var.confluent_api_secret }
     ]
 
-    portMappings = [{
-      containerPort = 8080
-      hostPort      = 8080
-      protocol      = "tcp"
-    }]
-
     logConfiguration = {
-      logDriver = "awslogs"
+      logDriver = "awslogs",
       options = {
-        awslogs-group         = "/ecs/${local.project_name}-producer"
-        awslogs-region        = var.aws_region
+        awslogs-group         = "/ecs/${local.project_name}-producer",
+        awslogs-region        = var.aws_region,
         awslogs-stream-prefix = "ecs"
       }
     }
   }])
-
-  tags = {
-    Project = local.project_name
-  }
 }
 
-### -------- FRAUD SERVICE -------- ###
+# FRAUD
 resource "aws_ecs_task_definition" "fraud" {
   family                   = "${local.project_name}-fraud"
+  requires_compatibilities = ["FARGATE"]
+  network_mode             = "awsvpc"
   cpu                      = "256"
   memory                   = "512"
-  network_mode             = "awsvpc"
-  requires_compatibilities = ["FARGATE"]
   execution_role_arn       = aws_iam_role.ecs_task_role.arn
   task_role_arn            = aws_iam_role.ecs_task_role.arn
 
   container_definitions = jsonencode([{
-    name      = "fraud"
-    image     = var.container_image_fraud
+    name  = "fraud"
+    image = var.container_image_fraud
     essential = true
 
     environment = [
-      { name = "KAFKA_BROKER", value = var.confluent_bootstrap_servers },
-      { name = "ORDERS_TOPIC", value = "orders" },
-      { name = "FRAUD_AMOUNT_THRESHOLD", value = "400" },
-      { name = "FRAUD_RISKY_COUNTRIES", value = "RU,FR,BR" }
+      { name = "BOOTSTRAP_SERVERS", value = var.confluent_bootstrap_servers },
+      { name = "CONFLUENT_API_KEY", value = var.confluent_api_key },
+      { name = "CONFLUENT_API_SECRET", value = var.confluent_api_secret }
     ]
 
     logConfiguration = {
-      logDriver = "awslogs"
+      logDriver = "awslogs",
       options = {
-        awslogs-group         = "/ecs/${local.project_name}-fraud"
-        awslogs-region        = var.aws_region
+        awslogs-group         = "/ecs/${local.project_name}-fraud",
+        awslogs-region        = var.aws_region,
         awslogs-stream-prefix = "ecs"
       }
     }
   }])
-
-  tags = {
-    Project = local.project_name
-  }
 }
 
-### -------- PAYMENT SERVICE -------- ###
+# PAYMENT
 resource "aws_ecs_task_definition" "payment" {
   family                   = "${local.project_name}-payment"
+  requires_compatibilities = ["FARGATE"]
+  network_mode             = "awsvpc"
   cpu                      = "256"
   memory                   = "512"
-  network_mode             = "awsvpc"
-  requires_compatibilities = ["FARGATE"]
   execution_role_arn       = aws_iam_role.ecs_task_role.arn
   task_role_arn            = aws_iam_role.ecs_task_role.arn
 
   container_definitions = jsonencode([{
-    name      = "payment"
-    image     = var.container_image_payment
+    name  = "payment"
+    image = var.container_image_payment
     essential = true
 
     environment = [
-      { name = "KAFKA_BROKER", value = var.confluent_bootstrap_servers },
-      { name = "ORDERS_TOPIC", value = "orders" },
-      { name = "PAYMENTS_TOPIC", value = "payments" }
+      { name = "BOOTSTRAP_SERVERS", value = var.confluent_bootstrap_servers },
+      { name = "CONFLUENT_API_KEY", value = var.confluent_api_key },
+      { name = "CONFLUENT_API_SECRET", value = var.confluent_api_secret }
     ]
 
     logConfiguration = {
-      logDriver = "awslogs"
+      logDriver = "awslogs",
       options = {
-        awslogs-group         = "/ecs/${local.project_name}-payment"
-        awslogs-region        = var.aws_region
+        awslogs-group         = "/ecs/${local.project_name}-payment",
+        awslogs-region        = var.aws_region,
         awslogs-stream-prefix = "ecs"
       }
     }
   }])
-
-  tags = {
-    Project = local.project_name
-  }
 }
 
-### -------- ANALYTICS SERVICE -------- ###
+# ANALYTICS
 resource "aws_ecs_task_definition" "analytics" {
   family                   = "${local.project_name}-analytics"
+  requires_compatibilities = ["FARGATE"]
+  network_mode             = "awsvpc"
   cpu                      = "256"
   memory                   = "512"
-  network_mode             = "awsvpc"
-  requires_compatibilities = ["FARGATE"]
   execution_role_arn       = aws_iam_role.ecs_task_role.arn
   task_role_arn            = aws_iam_role.ecs_task_role.arn
 
   container_definitions = jsonencode([{
-    name      = "analytics"
-    image     = var.container_image_analytics
+    name  = "analytics"
+    image = var.container_image_analytics
     essential = true
 
     environment = [
-      { name = "KAFKA_BROKER", value = var.confluent_bootstrap_servers },
-      { name = "ORDERS_TOPIC", value = "orders" },
-      { name = "ANALYTICS_PRINT_EVERY", value = "10" },
-
-      { name = "COUCHBASE_HOST", value = "couchbase" },
-      { name = "COUCHBASE_BUCKET", value = "order_analytics" },
-      { name = "COUCHBASE_USERNAME", value = "Administrator" },
-      { name = "COUCHBASE_PASSWORD", value = "password" }
+      { name = "BOOTSTRAP_SERVERS", value = var.confluent_bootstrap_servers },
+      { name = "CONFLUENT_API_KEY", value = var.confluent_api_key },
+      { name = "CONFLUENT_API_SECRET", value = var.confluent_api_secret }
     ]
 
     logConfiguration = {
-      logDriver = "awslogs"
+      logDriver = "awslogs",
       options = {
-        awslogs-group         = "/ecs/${local.project_name}-analytics"
-        awslogs-region        = var.aws_region
+        awslogs-group         = "/ecs/${local.project_name}-analytics",
+        awslogs-region        = var.aws_region,
         awslogs-stream-prefix = "ecs"
       }
     }
   }])
-
-  tags = {
-    Project = local.project_name
-  }
 }
 
 ###############################################
 # ECS SERVICES
 ###############################################
 
+# PRODUCER SERVICE
 resource "aws_ecs_service" "producer" {
   name            = "${local.project_name}-producer"
   cluster         = aws_ecs_cluster.main.id
@@ -214,15 +185,12 @@ resource "aws_ecs_service" "producer" {
 
   network_configuration {
     subnets          = local.private_subnets
-    security_groups  = [local.ecs_tasks_sg_id]
+    security_groups  = [local.ecs_sg]
     assign_public_ip = false
   }
-
-  depends_on = [
-    aws_iam_role_policy_attachment.ecs_task_role_attach
-  ]
 }
 
+# FRAUD SERVICE
 resource "aws_ecs_service" "fraud" {
   name            = "${local.project_name}-fraud"
   cluster         = aws_ecs_cluster.main.id
@@ -232,15 +200,12 @@ resource "aws_ecs_service" "fraud" {
 
   network_configuration {
     subnets          = local.private_subnets
-    security_groups  = [local.ecs_tasks_sg_id]
+    security_groups  = [local.ecs_sg]
     assign_public_ip = false
   }
-
-  depends_on = [
-    aws_iam_role_policy_attachment.ecs_task_role_attach
-  ]
 }
 
+# PAYMENT SERVICE
 resource "aws_ecs_service" "payment" {
   name            = "${local.project_name}-payment"
   cluster         = aws_ecs_cluster.main.id
@@ -250,15 +215,12 @@ resource "aws_ecs_service" "payment" {
 
   network_configuration {
     subnets          = local.private_subnets
-    security_groups  = [local.ecs_tasks_sg_id]
+    security_groups  = [local.ecs_sg]
     assign_public_ip = false
   }
-
-  depends_on = [
-    aws_iam_role_policy_attachment.ecs_task_role_attach
-  ]
 }
 
+# ANALYTICS SERVICE
 resource "aws_ecs_service" "analytics" {
   name            = "${local.project_name}-analytics"
   cluster         = aws_ecs_cluster.main.id
@@ -268,12 +230,8 @@ resource "aws_ecs_service" "analytics" {
 
   network_configuration {
     subnets          = local.private_subnets
-    security_groups  = [local.ecs_tasks_sg_id]
+    security_groups  = [local.ecs_sg]
     assign_public_ip = false
   }
-
-  depends_on = [
-    aws_iam_role_policy_attachment.ecs_task_role_attach
-  ]
 }
 
