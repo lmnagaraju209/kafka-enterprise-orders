@@ -30,14 +30,7 @@ resource "aws_iam_role_policy_attachment" "ecs_task_role_attach" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
-###############################################
-# COMMON NETWORK CONFIG
-###############################################
 
-locals {
-  private_subnets = var.existing_private_subnet_ids
-  ecs_sg          = var.existing_ecs_tasks_sg_id
-}
 
 ###############################################
 # TASK DEFINITIONS
