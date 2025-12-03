@@ -1,6 +1,8 @@
 locals {
-  project_name   = var.project_name
+  # Project name
+  project_name = var.project_name
 
+  # Network – using existing values so no conflicts
   vpc_id          = var.existing_vpc_id
   public_subnets  = var.existing_public_subnet_ids
   private_subnets = var.existing_private_subnet_ids

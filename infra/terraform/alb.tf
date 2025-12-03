@@ -1,3 +1,6 @@
+###############################################
+# APPLICATION LOAD BALANCER
+###############################################
 resource "aws_lb" "ecs_alb" {
   name               = "${local.project_name}-alb-main"
   internal           = false
@@ -6,20 +9,37 @@ resource "aws_lb" "ecs_alb" {
   subnets            = var.public_subnets
 }
 
+###############################################
+# TARGET GROUP FOR PRODUCER SERVICE
+###############################################
+resource "aws_lb_target_group" "producer_tg" {
+  name        = "${var.project_name}-producer-tg"
+  port        = 8080
+  protocol    = "HTTP"
+  target_type = "ip"
+  vpc_id      = local.vpc_id
+
+  health_check {
+    path                = "/"
+    matcher             = "200-499"
+    interval            = 10
+    timeout             = 5
+    unhealthy_threshold = 3
+    healthy_threshold   = 2
+  }
+}
+
+###############################################
+# LISTENER FOR PORT 80
+###############################################
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.ecs_alb.arn
   port              = 80
   protocol          = "HTTP"
 
   default_action {
-    type = "forward"
-
-    forward {
-      target_group {
-        arn    = aws_lb_target_group.producer_tg.arn
-        weight = 1
-      }
-    }
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.producer_tg.arn
   }
 }
 

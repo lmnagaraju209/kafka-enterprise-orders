@@ -35,10 +35,10 @@ resource "aws_security_group" "ecs_tasks" {
   vpc_id      = local.vpc_id
 
   ingress {
-    description = "Allow all traffic from ALB"
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
+    description    = "Allow ALB to reach tasks"
+    from_port      = 8080
+    to_port        = 8080
+    protocol       = "tcp"
     security_groups = [local.alb_sg]
   }
 
@@ -51,7 +51,7 @@ resource "aws_security_group" "ecs_tasks" {
 }
 
 ###############################################
-# ECS TASK DEFINITION – PRODUCER
+# ECS TASK DEFINITION FOR PRODUCER
 ###############################################
 resource "aws_ecs_task_definition" "producer" {
   family                   = "${var.project_name}-producer"
@@ -63,8 +63,8 @@ resource "aws_ecs_task_definition" "producer" {
 
   container_definitions = jsonencode([
     {
-      name  = "producer"
-      image = var.container_image_producer
+      name      = "producer"
+      image     = var.container_image_producer
       essential = true
 
       environment = [
@@ -96,7 +96,7 @@ resource "aws_ecs_task_definition" "producer" {
 }
 
 ###############################################
-# CLOUDWATCH LOG GROUP FOR PRODUCER
+# CLOUDWATCH LOG GROUP
 ###############################################
 resource "aws_cloudwatch_log_group" "producer_lg" {
   name              = "/ecs/${var.project_name}-producer"
@@ -104,7 +104,7 @@ resource "aws_cloudwatch_log_group" "producer_lg" {
 }
 
 ###############################################
-# ECS SERVICE – PRODUCER
+# ECS SERVICE FOR PRODUCER
 ###############################################
 resource "aws_ecs_service" "producer" {
   name            = "${var.project_name}-producer"
@@ -119,7 +119,14 @@ resource "aws_ecs_service" "producer" {
     assign_public_ip = false
   }
 
+  load_balancer {
+    target_group_arn = aws_lb_target_group.producer_tg.arn
+    container_name   = "producer"
+    container_port   = 8080
+  }
+
   depends_on = [
+    aws_lb_target_group.producer_tg,
     aws_iam_role_policy_attachment.ecs_task_execution_1,
     aws_cloudwatch_log_group.producer_lg
   ]
