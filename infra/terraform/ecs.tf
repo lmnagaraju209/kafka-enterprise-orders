@@ -27,23 +27,22 @@ resource "aws_iam_role_policy_attachment" "ecs_task_execution_1" {
 }
 
 ###############################################
-# SECURITY GROUP FOR ECS TASKS
+# SECURITY GROUP FOR ECS TASKS (WORKERS)
 ###############################################
 resource "aws_security_group" "ecs_tasks" {
   name        = "${var.project_name}-ecs-tasks-sg"
   description = "Security group for ECS tasks"
-  vpc_id      = local.vpc_id
+  vpc_id      = local.vpc_id # you already have local.vpc_id in locals.tf
 
-  # ALB -> ECS tasks on 8080
+  # Workers do not accept inbound traffic
   ingress {
-    description     = "Allow ALB to reach tasks"
-    from_port       = 8080
-    to_port         = 8080
-    protocol        = "tcp"
-    security_groups = [local.alb_sg]
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["127.0.0.1/32"]
   }
 
-  # ECS tasks -> Internet (Confluent Cloud, etc.)
+  # Outbound to internet (Confluent Cloud, etc.)
   egress {
     from_port   = 0
     to_port     = 0
@@ -53,8 +52,33 @@ resource "aws_security_group" "ecs_tasks" {
 }
 
 ###############################################
-# ECS TASK DEFINITION – PRODUCER
+# CLOUDWATCH LOG GROUPS
 ###############################################
+resource "aws_cloudwatch_log_group" "producer_lg" {
+  name              = "/ecs/${var.project_name}-producer"
+  retention_in_days = 1
+}
+
+resource "aws_cloudwatch_log_group" "fraud_lg" {
+  name              = "/ecs/${var.project_name}-fraud"
+  retention_in_days = 1
+}
+
+resource "aws_cloudwatch_log_group" "payment_lg" {
+  name              = "/ecs/${var.project_name}-payment"
+  retention_in_days = 1
+}
+
+resource "aws_cloudwatch_log_group" "analytics_lg" {
+  name              = "/ecs/${var.project_name}-analytics"
+  retention_in_days = 1
+}
+
+###############################################
+# TASK DEFINITIONS – PRODUCER / FRAUD / PAYMENT / ANALYTICS
+###############################################
+
+# PRODUCER – sends messages to Kafka (Confluent Cloud)
 resource "aws_ecs_task_definition" "producer" {
   family                   = "${var.project_name}-producer"
   cpu                      = "256"
@@ -70,6 +94,7 @@ resource "aws_ecs_task_definition" "producer" {
       essential = true
 
       environment = [
+        { name = "SERVICE_NAME",           value = "producer" },
         { name = "KAFKA_BOOTSTRAP_SERVERS", value = var.confluent_bootstrap_servers },
         { name = "CONFLUENT_API_KEY",       value = var.confluent_api_key },
         { name = "CONFLUENT_API_SECRET",    value = var.confluent_api_secret },
@@ -77,18 +102,118 @@ resource "aws_ecs_task_definition" "producer" {
         { name = "SLEEP_SECONDS",           value = "2" }
       ]
 
-      portMappings = [
-        {
-          containerPort = 8080
-          hostPort      = 8080
-          protocol      = "tcp"
+      # no portMappings – this is a background worker, no HTTP
+
+      logConfiguration = {
+        logDriver = "awslogs",
+        options = {
+          awslogs-group         = aws_cloudwatch_log_group.producer_lg.name
+          awslogs-region        = var.aws_region
+          awslogs-stream-prefix = "ecs"
         }
+      }
+    }
+  ])
+}
+
+# FRAUD SERVICE – consumes from Kafka, flags suspicious orders
+resource "aws_ecs_task_definition" "fraud" {
+  family                   = "${var.project_name}-fraud"
+  cpu                      = "256"
+  memory                   = "512"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  execution_role_arn       = aws_iam_role.ecs_task_execution.arn
+
+  container_definitions = jsonencode([
+    {
+      name      = "fraud"
+      image     = var.container_image_fraud
+      essential = true
+
+      environment = [
+        { name = "SERVICE_NAME",           value = "fraud-service" },
+        { name = "KAFKA_BOOTSTRAP_SERVERS", value = var.confluent_bootstrap_servers },
+        { name = "CONFLUENT_API_KEY",       value = var.confluent_api_key },
+        { name = "CONFLUENT_API_SECRET",    value = var.confluent_api_secret },
+        { name = "INPUT_TOPIC",             value = "orders" }
       ]
 
       logConfiguration = {
         logDriver = "awslogs",
         options = {
-          awslogs-group         = "/ecs/${var.project_name}-producer"
+          awslogs-group         = aws_cloudwatch_log_group.fraud_lg.name
+          awslogs-region        = var.aws_region
+          awslogs-stream-prefix = "ecs"
+        }
+      }
+    }
+  ])
+}
+
+# PAYMENT SERVICE – consumes from Kafka, simulates payments
+resource "aws_ecs_task_definition" "payment" {
+  family                   = "${var.project_name}-payment"
+  cpu                      = "256"
+  memory                   = "512"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  execution_role_arn       = aws_iam_role.ecs_task_execution.arn
+
+  container_definitions = jsonencode([
+    {
+      name      = "payment"
+      image     = var.container_image_payment
+      essential = true
+
+      environment = [
+        { name = "SERVICE_NAME",           value = "payment-service" },
+        { name = "KAFKA_BOOTSTRAP_SERVERS", value = var.confluent_bootstrap_servers },
+        { name = "CONFLUENT_API_KEY",       value = var.confluent_api_key },
+        { name = "CONFLUENT_API_SECRET",    value = var.confluent_api_secret },
+        { name = "INPUT_TOPIC",             value = "orders" }
+      ]
+
+      logConfiguration = {
+        logDriver = "awslogs",
+        options = {
+          awslogs-group         = aws_cloudwatch_log_group.payment_lg.name
+          awslogs-region        = var.aws_region
+          awslogs-stream-prefix = "ecs"
+        }
+      }
+    }
+  ])
+}
+
+# ANALYTICS SERVICE – consumes from Kafka, writes to Couchbase / DB
+resource "aws_ecs_task_definition" "analytics" {
+  family                   = "${var.project_name}-analytics"
+  cpu                      = "256"
+  memory                   = "512"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  execution_role_arn       = aws_iam_role.ecs_task_execution.arn
+
+  container_definitions = jsonencode([
+    {
+      name      = "analytics"
+      image     = var.container_image_analytics
+      essential = true
+
+      environment = [
+        { name = "SERVICE_NAME",           value = "analytics-service" },
+        { name = "KAFKA_BOOTSTRAP_SERVERS", value = var.confluent_bootstrap_servers },
+        { name = "CONFLUENT_API_KEY",       value = var.confluent_api_key },
+        { name = "CONFLUENT_API_SECRET",    value = var.confluent_api_secret },
+        { name = "INPUT_TOPIC",             value = "orders" },
+        # add Couchbase / DB envs here if needed
+      ]
+
+      logConfiguration = {
+        logDriver = "awslogs",
+        options = {
+          awslogs-group         = aws_cloudwatch_log_group.analytics_lg.name
           awslogs-region        = var.aws_region
           awslogs-stream-prefix = "ecs"
         }
@@ -98,16 +223,9 @@ resource "aws_ecs_task_definition" "producer" {
 }
 
 ###############################################
-# CLOUDWATCH LOG GROUP FOR PRODUCER
+# ECS SERVICES – 4 WORKERS, NO ALB
 ###############################################
-resource "aws_cloudwatch_log_group" "producer_lg" {
-  name              = "/ecs/${var.project_name}-producer"
-  retention_in_days = 1
-}
 
-###############################################
-# ECS SERVICE – PRODUCER
-###############################################
 resource "aws_ecs_service" "producer" {
   name            = "${var.project_name}-producer-svc"
   cluster         = aws_ecs_cluster.this.id
@@ -116,23 +234,71 @@ resource "aws_ecs_service" "producer" {
   launch_type     = "FARGATE"
 
   network_configuration {
-    # IMPORTANT: use PUBLIC subnets and give PUBLIC IP for internet access
+    subnets         = local.public_subnets  # from your locals.tf
+    security_groups = [aws_security_group.ecs_tasks.id]
+    assign_public_ip = true                 # needs internet for Confluent Cloud
+  }
+
+  depends_on = [
+    aws_iam_role_policy_attachment.ecs_task_execution_1,
+    aws_cloudwatch_log_group.producer_lg
+  ]
+}
+
+resource "aws_ecs_service" "fraud" {
+  name            = "${var.project_name}-fraud-svc"
+  cluster         = aws_ecs_cluster.this.id
+  task_definition = aws_ecs_task_definition.fraud.arn
+  desired_count   = 1
+  launch_type     = "FARGATE"
+
+  network_configuration {
     subnets         = local.public_subnets
     security_groups = [aws_security_group.ecs_tasks.id]
     assign_public_ip = true
   }
 
-  load_balancer {
-    target_group_arn = aws_lb_target_group.producer_tg.arn
-    container_name   = "producer"
-    container_port   = 8080
+  depends_on = [
+    aws_iam_role_policy_attachment.ecs_task_execution_1,
+    aws_cloudwatch_log_group.fraud_lg
+  ]
+}
+
+resource "aws_ecs_service" "payment" {
+  name            = "${var.project_name}-payment-svc"
+  cluster         = aws_ecs_cluster.this.id
+  task_definition = aws_ecs_task_definition.payment.arn
+  desired_count   = 1
+  launch_type     = "FARGATE"
+
+  network_configuration {
+    subnets         = local.public_subnets
+    security_groups = [aws_security_group.ecs_tasks.id]
+    assign_public_ip = true
   }
 
   depends_on = [
     aws_iam_role_policy_attachment.ecs_task_execution_1,
-    aws_cloudwatch_log_group.producer_lg,
-    aws_lb_target_group.producer_tg,
-    aws_lb_listener.http
+    aws_cloudwatch_log_group.payment_lg
+  ]
+}
+
+resource "aws_ecs_service" "analytics" {
+  name            = "${var.project_name}-analytics-svc"
+  cluster         = aws_ecs_cluster.this.id
+  task_definition = aws_ecs_task_definition.analytics.arn
+  desired_count   = 1
+  launch_type     = "FARGATE"
+
+  network_configuration {
+    subnets         = local.public_subnets
+    security_groups = [aws_security_group.ecs_tasks.id]
+    assign_public_ip = true
+  }
+
+  depends_on = [
+    aws_iam_role_policy_attachment.ecs_task_execution_1,
+    aws_cloudwatch_log_group.analytics_lg
   ]
 }
 

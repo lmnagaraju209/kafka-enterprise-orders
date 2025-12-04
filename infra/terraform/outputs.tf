@@ -8,3 +8,19 @@ output "ecs_cluster_arn" {
   value       = aws_ecs_cluster.this.arn
 }
 
+output "producer_service_name" {
+  value = aws_ecs_service.producer.name
+}
+
+output "fraud_service_name" {
+  value = aws_ecs_service.fraud.name
+}
+
+output "payment_service_name" {
+  value = aws_ecs_service.payment.name
+}
+
+output "analytics_service_name" {
+  value = aws_ecs_service.analytics.name
+}
+
