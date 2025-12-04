@@ -1,6 +1,8 @@
 frontendImage: "ghcr.io/aisalkyn85/kafka-enterprise-orders/frontend:latest"
 backendImage: "ghcr.io/aisalkyn85/kafka-enterprise-orders/backend:latest"
 
+backendPort: 8000
+
 domain: "orders.jumptotech.dev"
 
 couchbase:
