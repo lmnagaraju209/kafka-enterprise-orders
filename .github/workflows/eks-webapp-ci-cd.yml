@@ -2,11 +2,16 @@ name: EKS WebApp Deployment
 
 on:
   push:
-    branches: [ "main" ]
+    branches:
+      - "main"
     paths:
       - "web/**"
       - "k8s/**"
       - "argocd/**"
+      - ".github/workflows/**"
+  pull_request:
+    branches:
+      - "main"
   workflow_dispatch:
 
 jobs:
