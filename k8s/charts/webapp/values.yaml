@@ -1,21 +1,8 @@
-# frontend image (correct GHCR repo)
-frontendImage: "ghcr.io/aisalkyn85/kafka-enterprise-orders-frontend:latest"
+frontendImage: "ghcr.io/aisalkyn85/kafka-enterprise-orders/frontend:latest"
+backendImage: "ghcr.io/aisalkyn85/kafka-enterprise-orders/backend:latest"
 
-# backend image (correct GHCR repo)
-backendImage: "ghcr.io/aisalkyn85/kafka-enterprise-orders-backend:latest"
-
-# Domain for ingress
 domain: "orders.jumptotech.dev"
 
-# Backend port (FastAPI runs on 8000)
-backend:
-  port: 8000
-
-# Frontend nginx port
-frontend:
-  port: 80
-
-# Couchbase settings
 couchbase:
   host: "couchbase.your-domain"
   bucket: "order_analytics"
