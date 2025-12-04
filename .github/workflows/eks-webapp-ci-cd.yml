@@ -1,59 +1,34 @@
-name: EKS-Webapp-CI-CD
+name: EKS WebApp Deployment
 
 on:
   push:
-    branches: [ main ]
+    branches: [ "main" ]
     paths:
       - "web/**"
-      - "k8s/charts/webapp/**"
-      - "argocd/webapp.yaml"
-      - ".github/workflows/eks-webapp-ci-cd.yml"
+      - "k8s/**"
+      - "argocd/**"
   workflow_dispatch:
 
-env:
-  AWS_REGION: us-east-2
-  GHCR_REGISTRY: ghcr.io
-  PROJECT_NAME: kafka-enterprise-orders
-
 jobs:
-  build-and-push-web:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Log in to GHCR
-        run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ${{ env.GHCR_REGISTRY }} -u ${{ github.actor }} --password-stdin
-
-      # FRONTEND IMAGE
-      - name: Build & push web-frontend image
-        run: |
-          IMAGE="${{ env.GHCR_REGISTRY }}/aisalkyn85/${{ env.PROJECT_NAME }}/web-frontend:latest"
-          docker build -t "$IMAGE" ./web/frontend
-          docker push "$IMAGE"
-          echo "FRONTEND_IMAGE=$IMAGE" >> $GITHUB_ENV
-
-      # BACKEND IMAGE
-      - name: Build & push web-backend image
-        run: |
-          IMAGE="${{ env.GHCR_REGISTRY }}/aisalkyn85/${{ env.PROJECT_NAME }}/web-backend:latest"
-          docker build -t "$IMAGE" ./web/backend
-          docker push "$IMAGE"
-          echo "BACKEND_IMAGE=$IMAGE" >> $GITHUB_ENV
-
-  apply-argocd-app:
-    needs: build-and-push-web
+  deploy-webapp:
     runs-on: ubuntu-latest
 
     env:
-      EKS_CLUSTER_NAME: ${{ secrets.EKS_CLUSTER_NAME }}
+      AWS_REGION: us-east-2
+      EKS_CLUSTER_NAME: kafka-enterprise-orders-eks-cluster
+      GHCR_REGISTRY: ghcr.io
+      PROJECT_NAME: kafka-enterprise-orders
 
     steps:
-      - name: Checkout
+      # --------------------------------------------------------------
+      # CHECKOUT CODE
+      # --------------------------------------------------------------
+      - name: Checkout repository
         uses: actions/checkout@v4
 
+      # --------------------------------------------------------------
+      # CONFIGURE AWS
+      # --------------------------------------------------------------
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -61,13 +36,49 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Configure kubectl for EKS
+      # --------------------------------------------------------------
+      # LOGIN TO GHCR
+      # --------------------------------------------------------------
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.GHCR_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # --------------------------------------------------------------
+      # BUILD + PUSH FRONTEND
+      # --------------------------------------------------------------
+      - name: Build & Push Web Frontend
+        run: |
+          IMAGE="${{ env.GHCR_REGISTRY }}/${{ github.actor }}/${{ env.PROJECT_NAME }}/web-frontend:latest"
+          echo "Building Frontend: $IMAGE"
+          docker build -t $IMAGE ./web/frontend
+          docker push $IMAGE
+
+      # --------------------------------------------------------------
+      # BUILD + PUSH BACKEND
+      # --------------------------------------------------------------
+      - name: Build & Push Web Backend
+        run: |
+          IMAGE="${{ env.GHCR_REGISTRY }}/${{ github.actor }}/${{ env.PROJECT_NAME }}/web-backend:latest"
+          echo "Building Backend: $IMAGE"
+          docker build -t $IMAGE ./web/backend
+          docker push $IMAGE
+
+      # --------------------------------------------------------------
+      # SETUP KUBECONFIG FOR EKS
+      # --------------------------------------------------------------
+      - name: Update kubeconfig
         run: |
           aws eks update-kubeconfig \
             --region "${{ env.AWS_REGION }}" \
             --name "${{ env.EKS_CLUSTER_NAME }}"
 
-      - name: Apply ArgoCD Application for webapp
+      # --------------------------------------------------------------
+      # APPLY ARGOCD APPLICATION MANIFEST
+      # --------------------------------------------------------------
+      - name: Deploy ArgoCD Application
         run: |
           kubectl apply -f argocd/webapp.yaml
 
