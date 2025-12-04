@@ -18,27 +18,35 @@ spec:
 
     spec:
       imagePullSecrets:
-      - name: ghcr
+        - name: ghcr
 
       containers:
-      - name: frontend
-        image: {{ .Values.frontendImage }}
-        imagePullPolicy: Always
-        ports:
-        - containerPort: 80
+        # ----------------------------------------------------
+        # FRONTEND (React + Nginx)
+        # ----------------------------------------------------
+        - name: frontend
+          image: {{ .Values.frontendImage }}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
 
-      - name: backend
-        image: {{ .Values.backendImage }}
-        imagePullPolicy: Always
-        env:
-        - name: COUCHBASE_HOST
-          value: "{{ .Values.couchbase.host }}"
-        - name: COUCHBASE_BUCKET
-          value: "{{ .Values.couchbase.bucket }}"
-        - name: COUCHBASE_USERNAME
-          value: "{{ .Values.couchbase.username }}"
-        - name: COUCHBASE_PASSWORD
-          value: "{{ .Values.couchbase.password }}"
-        ports:
-        - containerPort: {{ .Values.backendPort }}
+        # ----------------------------------------------------
+        # BACKEND (FastAPI)
+        # ----------------------------------------------------
+        - name: backend
+          image: {{ .Values.backendImage }}
+          imagePullPolicy: Always
+
+          env:
+            - name: COUCHBASE_HOST
+              value: "{{ .Values.couchbase.host }}"
+            - name: COUCHBASE_BUCKET
+              value: "{{ .Values.couchbase.bucket }}"
+            - name: COUCHBASE_USERNAME
+              value: "{{ .Values.couchbase.username }}"
+            - name: COUCHBASE_PASSWORD
+              value: "{{ .Values.couchbase.password }}"
+
+          ports:
+            - containerPort: {{ .Values.backendPort }}
 
