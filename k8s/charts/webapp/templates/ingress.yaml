@@ -23,5 +23,5 @@ spec:
               service:
                 name: webapp
                 port:
-                  number: 5000
+                  number: 8000
 
