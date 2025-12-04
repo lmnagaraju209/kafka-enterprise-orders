@@ -5,11 +5,22 @@ metadata:
   namespace: argocd
 spec:
   project: default
-
   source:
-    repoURL: "https://github.com/Aisalkyn85/kafka-enterprise-orders"
-    path: k8s/charts/webapp
+    repoURL: 'https://github.com/Aisalkyn85/kafka-enterprise-orders.git'
     targetRevision: main
+    path: k8s/charts/webapp
+    helm:
+      values: |
+        frontendImage: "ghcr.io/Aisalkyn85/kafka-enterprise-orders/web-frontend:latest"
+        backendImage: "ghcr.io/Aisalkyn85/kafka-enterprise-orders/web-backend:latest"
+
+        domain: "orders.jumptotech.dev"
+
+        couchbase:
+          host: "couchbase.your-domain"
+          bucket: "order_analytics"
+          username: "Administrator"
+          password: "password"
 
   destination:
     server: https://kubernetes.default.svc
@@ -19,3 +30,6 @@ spec:
     automated:
       prune: true
       selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+

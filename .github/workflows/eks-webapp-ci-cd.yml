@@ -1,0 +1,73 @@
+name: EKS-Webapp-CI-CD
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "web/**"
+      - "k8s/charts/webapp/**"
+      - "argocd/webapp.yaml"
+      - ".github/workflows/eks-webapp-ci-cd.yml"
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-east-2
+  GHCR_REGISTRY: ghcr.io
+  PROJECT_NAME: kafka-enterprise-orders
+
+jobs:
+  build-and-push-web:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ${{ env.GHCR_REGISTRY }} -u ${{ github.actor }} --password-stdin
+
+      # FRONTEND IMAGE
+      - name: Build & push web-frontend image
+        run: |
+          IMAGE="${{ env.GHCR_REGISTRY }}/${{ github.repository_owner }}/${{ env.PROJECT_NAME }}/web-frontend:latest"
+          docker build -t "$IMAGE" ./web/frontend
+          docker push "$IMAGE"
+          echo "FRONTEND_IMAGE=$IMAGE" >> $GITHUB_ENV
+
+      # BACKEND IMAGE
+      - name: Build & push web-backend image
+        run: |
+          IMAGE="${{ env.GHCR_REGISTRY }}/${{ github.repository_owner }}/${{ env.PROJECT_NAME }}/web-backend:latest"
+          docker build -t "$IMAGE" ./web/backend
+          docker push "$IMAGE"
+          echo "BACKEND_IMAGE=$IMAGE" >> $GITHUB_ENV
+
+  apply-argocd-app:
+    needs: build-and-push-web
+    runs-on: ubuntu-latest
+
+    env:
+      EKS_CLUSTER_NAME: ${{ secrets.EKS_CLUSTER_NAME }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Configure kubectl for EKS
+        run: |
+          aws eks update-kubeconfig \
+            --region "${{ env.AWS_REGION }}" \
+            --name "${{ env.EKS_CLUSTER_NAME }}"
+
+      - name: Apply ArgoCD Application for webapp
+        run: |
+          kubectl apply -f argocd/webapp.yaml
+

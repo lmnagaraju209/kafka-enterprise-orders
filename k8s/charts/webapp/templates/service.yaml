@@ -3,10 +3,14 @@ kind: Service
 metadata:
   name: webapp
 spec:
-  type: ClusterIP
   selector:
     app: webapp
   ports:
-    - port: 80
+    - name: http-frontend
+      port: 80
       targetPort: 80
-      name: http
+
+    - name: http-backend
+      port: 5000
+      targetPort: 5000
+
