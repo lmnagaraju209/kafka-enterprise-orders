@@ -30,7 +30,7 @@ jobs:
       # FRONTEND IMAGE
       - name: Build & push web-frontend image
         run: |
-          IMAGE="${{ env.GHCR_REGISTRY }}/${{ github.repository_owner }}/${{ env.PROJECT_NAME }}/web-frontend:latest"
+          IMAGE="${{ env.GHCR_REGISTRY }}/aisalkyn85/${{ env.PROJECT_NAME }}/web-frontend:latest"
           docker build -t "$IMAGE" ./web/frontend
           docker push "$IMAGE"
           echo "FRONTEND_IMAGE=$IMAGE" >> $GITHUB_ENV
@@ -38,7 +38,7 @@ jobs:
       # BACKEND IMAGE
       - name: Build & push web-backend image
         run: |
-          IMAGE="${{ env.GHCR_REGISTRY }}/${{ github.repository_owner }}/${{ env.PROJECT_NAME }}/web-backend:latest"
+          IMAGE="${{ env.GHCR_REGISTRY }}/aisalkyn85/${{ env.PROJECT_NAME }}/web-backend:latest"
           docker build -t "$IMAGE" ./web/backend
           docker push "$IMAGE"
           echo "BACKEND_IMAGE=$IMAGE" >> $GITHUB_ENV
