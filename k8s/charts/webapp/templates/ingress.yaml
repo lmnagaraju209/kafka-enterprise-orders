@@ -6,10 +6,21 @@ metadata:
     kubernetes.io/ingress.class: alb
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
-    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}]'
     alb.ingress.kubernetes.io/healthcheck-path: /healthz
+    {{- if .Values.ingress.certificateArn }}
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    alb.ingress.kubernetes.io/certificate-arn: {{ .Values.ingress.certificateArn }}
+    {{- else }}
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}]'
+    {{- end }}
 spec:
   ingressClassName: alb
+  {{- if .Values.ingress.certificateArn }}
+  tls:
+    - hosts:
+        - {{ .Values.ingress.host }}
+  {{- end }}
   rules:
     {{- if .Values.ingress.host }}
     - host: {{ .Values.ingress.host }}
@@ -44,7 +55,7 @@ spec:
                 port:
                   number: 80
     {{- end }}
-    # default rule for alb dns
+    # default rule for direct ALB access
     - http:
         paths:
           - path: /api

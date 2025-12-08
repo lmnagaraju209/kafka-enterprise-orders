@@ -1,7 +1,0 @@
-﻿spec:
-  template:
-    spec:
-      containers:
-      - name: backend
-        ports:
-        - containerPort: 8000

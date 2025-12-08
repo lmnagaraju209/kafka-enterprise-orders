@@ -4,7 +4,6 @@ backendPort: 8000
 
 replicaCount: 1
 
-# pipeline creates the secret, set to true for manual deploys
 ghcr:
   enabled: false
   username: "aisalkyn85"
@@ -12,6 +11,7 @@ ghcr:
 
 ingress:
   host: "orders.jumptotech.net"
+  certificateArn: "arn:aws:acm:us-east-2:343218219153:certificate/00353776-9755-4283-98f8-e05c1e337b28"
 
 couchbase:
   host: "couchbase.your-domain.com"
