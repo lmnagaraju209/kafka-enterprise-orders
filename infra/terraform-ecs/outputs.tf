@@ -1,12 +1,19 @@
-output "cluster_name" {
-  value = module.eks.cluster_name
+output "ecs_cluster_name" {
+  value = aws_ecs_cluster.this.name
 }
 
-output "cluster_endpoint" {
-  value = module.eks.cluster_endpoint
+output "ecs_cluster_arn" {
+  value = aws_ecs_cluster.this.arn
 }
 
-output "cluster_security_group" {
-  value = module.eks.cluster_security_group_id
+output "alb_dns_name" {
+  value = aws_lb.ecs_alb.dns_name
 }
 
+output "alb_arn" {
+  value = aws_lb.ecs_alb.arn
+}
+
+output "webapp_url" {
+  value = "http://${aws_lb.ecs_alb.dns_name}"
+}

@@ -1,14 +1,41 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: webapp
+  name: {{ .Release.Name }}-ingress
   annotations:
-    kubernetes.io/ingress.class: nginx
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}]'
+    alb.ingress.kubernetes.io/healthcheck-path: /healthz
 spec:
+  ingressClassName: alb
   rules:
-    - host: orders.jumptotech.net    # <-- FIXED DOMAIN
+    {{- if .Values.ingress.host }}
+    - host: {{ .Values.ingress.host }}
       http:
         paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: webapp
+                port:
+                  number: {{ .Values.backendPort }}
+          - path: /healthz
+            pathType: Exact
+            backend:
+              service:
+                name: webapp
+                port:
+                  number: {{ .Values.backendPort }}
+          - path: /docs
+            pathType: Prefix
+            backend:
+              service:
+                name: webapp
+                port:
+                  number: {{ .Values.backendPort }}
           - path: /
             pathType: Prefix
             backend:
@@ -16,4 +43,35 @@ spec:
                 name: webapp
                 port:
                   number: 80
-
+    {{- end }}
+    # default rule for alb dns
+    - http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: webapp
+                port:
+                  number: {{ .Values.backendPort }}
+          - path: /healthz
+            pathType: Exact
+            backend:
+              service:
+                name: webapp
+                port:
+                  number: {{ .Values.backendPort }}
+          - path: /docs
+            pathType: Prefix
+            backend:
+              service:
+                name: webapp
+                port:
+                  number: {{ .Values.backendPort }}
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: webapp
+                port:
+                  number: 80

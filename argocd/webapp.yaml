@@ -13,23 +13,23 @@ spec:
       values: |
         frontendImage: "ghcr.io/aisalkyn85/kafka-enterprise-orders/web-frontend:latest"
         backendImage: "ghcr.io/aisalkyn85/kafka-enterprise-orders/web-backend:latest"
-
-        domain: "orders.jumptotech.dev"
-
+        backendPort: 8000
+        ghcr:
+          enabled: false
+        ingress:
+          host: "orders.jumptotech.dev"
         couchbase:
-          host: "couchbase.your-domain"
+          host: "couchbase.your-domain.com"
           bucket: "order_analytics"
           username: "Administrator"
-          password: "password"
-
+          password: ""
+        replicaCount: 1
   destination:
     server: https://kubernetes.default.svc
-    namespace: webapp
-
+    namespace: default
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-

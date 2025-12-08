@@ -32,7 +32,7 @@ def create_producer():
         retries=5,
         acks="all",
         request_timeout_ms=30000,
-        api_version_auto_timeout_ms=30000,
+        api_version=(2, 6, 0),  # Skip auto-detection for Confluent Cloud
     )
 
 def generate_order(order_id: int) -> dict:

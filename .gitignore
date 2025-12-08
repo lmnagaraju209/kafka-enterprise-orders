@@ -15,3 +15,6 @@ __pycache__/
 # OS junk
 .DS_Store
 
+
+# terraform secrets
+infra/terraform-ecs/secrets.tfvars

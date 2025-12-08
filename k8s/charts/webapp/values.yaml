@@ -1,13 +1,20 @@
-frontendImage: "ghcr.io/aisalkyn85/kafka-enterprise-orders/frontend:latest"
-backendImage: "ghcr.io/aisalkyn85/kafka-enterprise-orders/backend:latest"
-
+frontendImage: "ghcr.io/aisalkyn85/kafka-enterprise-orders/web-frontend:latest"
+backendImage: "ghcr.io/aisalkyn85/kafka-enterprise-orders/web-backend:latest"
 backendPort: 8000
 
-domain: "orders.jumptotech.dev"
+replicaCount: 1
+
+# pipeline creates the secret, set to true for manual deploys
+ghcr:
+  enabled: false
+  username: "aisalkyn85"
+  password: ""
+
+ingress:
+  host: "orders.jumptotech.net"
 
 couchbase:
-  host: "couchbase.your-domain"
+  host: "couchbase.your-domain.com"
   bucket: "order_analytics"
   username: "Administrator"
-  password: "password"
-
+  password: ""

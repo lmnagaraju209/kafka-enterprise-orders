@@ -2,15 +2,14 @@ resource "aws_lb" "ecs_alb" {
   name               = "${var.project_name}-alb-main"
   internal           = false
   load_balancer_type = "application"
-  security_groups    = [var.alb_sg_id]
-  subnets            = var.public_subnets
+  security_groups    = [local.alb_sg]
+  subnets            = local.public_subnets
 }
 
-# Target group for the producer service
-# Name must be <= 32 characters
-resource "aws_lb_target_group" "producer_tg" {
-  name        = "${var.project_name}-prod-tg" # e.g. kafka-enterprise-orders-prod-tg (31 chars)
-  port        = 8080
+# frontend target group
+resource "aws_lb_target_group" "webapp_tg" {
+  name        = "${var.project_name}-web-tg"
+  port        = 80
   protocol    = "HTTP"
   target_type = "ip"
   vpc_id      = local.vpc_id
@@ -21,25 +20,57 @@ resource "aws_lb_target_group" "producer_tg" {
     unhealthy_threshold = 3
     interval            = 30
     timeout             = 5
-    path                = "/actuator/health"
+    path                = "/"
+    matcher             = "200,301,302"
     protocol            = "HTTP"
   }
 }
 
+# backend target group
+resource "aws_lb_target_group" "backend_tg" {
+  name        = "${var.project_name}-api-tg"
+  port        = 8000
+  protocol    = "HTTP"
+  target_type = "ip"
+  vpc_id      = local.vpc_id
+
+  health_check {
+    enabled             = true
+    healthy_threshold   = 2
+    unhealthy_threshold = 3
+    interval            = 30
+    timeout             = 5
+    path                = "/healthz"
+    matcher             = "200"
+    protocol            = "HTTP"
+  }
+}
+
+# listener
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.ecs_alb.arn
   port              = 80
   protocol          = "HTTP"
 
   default_action {
-    type = "forward"
-
-    forward {
-      target_group {
-        arn    = aws_lb_target_group.producer_tg.arn
-        weight = 1
-      }
-    }
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.webapp_tg.arn
   }
 }
 
+# route /api to backend
+resource "aws_lb_listener_rule" "api_routing" {
+  listener_arn = aws_lb_listener.http.arn
+  priority     = 100
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.backend_tg.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/api/*", "/healthz", "/docs", "/openapi.json"]
+    }
+  }
+}
