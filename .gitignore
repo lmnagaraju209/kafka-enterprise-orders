@@ -3,18 +3,27 @@
 *.tfstate.backup
 .terraform/
 .terraform*
-terraform.tfvars
+
+# Secrets - never commit
+secrets.tfvars
+values-secrets.yaml
+*.secret
+*.pem
+*.key
 
 # Python
 __pycache__/
 *.pyc
+venv/
+.venv/
 
 # Logs
 *.log
 
-# OS junk
+# OS
 .DS_Store
+Thumbs.db
 
-
-# terraform secrets
-infra/terraform-ecs/secrets.tfvars
+# IDE
+.idea/
+.vscode/

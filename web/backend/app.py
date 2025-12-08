@@ -1,55 +1,41 @@
 from fastapi import FastAPI
+from datetime import timedelta
 import os
-import psycopg2
-import json
+
 from couchbase.cluster import Cluster, ClusterOptions
 from couchbase.auth import PasswordAuthenticator
 from couchbase.options import ClusterTimeoutOptions
 
 app = FastAPI()
 
-# Couchbase env variables
 COUCHBASE_HOST = os.getenv("COUCHBASE_HOST")
 COUCHBASE_BUCKET = os.getenv("COUCHBASE_BUCKET")
 COUCHBASE_USER = os.getenv("COUCHBASE_USERNAME")
 COUCHBASE_PASS = os.getenv("COUCHBASE_PASSWORD")
 
 
-# ---------------------------------------------------------
-# Health check endpoint for Kubernetes / ECS / LoadBalancers
-# ---------------------------------------------------------
 @app.get("/healthz")
 def healthz():
     return {"status": "ok"}
 
 
-# ---------------------------------------------------------
-# Analytics endpoint — read last 10 records from Couchbase
-# ---------------------------------------------------------
 @app.get("/api/analytics")
 def get_analytics():
     try:
-        # Connect to Couchbase
+        conn_str = f"couchbases://{COUCHBASE_HOST}" if "cloud.couchbase.com" in COUCHBASE_HOST else f"couchbase://{COUCHBASE_HOST}"
+        
         cluster = Cluster(
-            f"couchbase://{COUCHBASE_HOST}",
+            conn_str,
             ClusterOptions(
                 PasswordAuthenticator(COUCHBASE_USER, COUCHBASE_PASS),
-                timeout_options=ClusterTimeoutOptions(kv_timeout=5)
+                timeout_options=ClusterTimeoutOptions(kv_timeout=timedelta(seconds=5))
             )
         )
 
         bucket = cluster.bucket(COUCHBASE_BUCKET)
-        collection = bucket.default_collection()
+        result = cluster.query(f"SELECT * FROM `{COUCHBASE_BUCKET}` LIMIT 10;")
 
-        # Query: get last 10 orders
-        result = cluster.query(
-            f"SELECT * FROM `{COUCHBASE_BUCKET}` LIMIT 10;"
-        )
-
-        orders = [row for row in result]
-
-        return {"status": "ok", "orders": orders}
+        return {"status": "ok", "orders": [row for row in result]}
 
     except Exception as e:
         return {"error": str(e)}
-

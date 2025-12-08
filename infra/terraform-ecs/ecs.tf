@@ -266,7 +266,11 @@ resource "aws_ecs_task_definition" "analytics" {
     secrets = [
       { name = "KAFKA_BOOTSTRAP_SERVERS", valueFrom = "${aws_secretsmanager_secret.confluent.arn}:bootstrap_servers::" },
       { name = "CONFLUENT_API_KEY", valueFrom = "${aws_secretsmanager_secret.confluent.arn}:api_key::" },
-      { name = "CONFLUENT_API_SECRET", valueFrom = "${aws_secretsmanager_secret.confluent.arn}:api_secret::" }
+      { name = "CONFLUENT_API_SECRET", valueFrom = "${aws_secretsmanager_secret.confluent.arn}:api_secret::" },
+      { name = "COUCHBASE_HOST", valueFrom = "${aws_secretsmanager_secret.couchbase.arn}:host::" },
+      { name = "COUCHBASE_BUCKET", valueFrom = "${aws_secretsmanager_secret.couchbase.arn}:bucket::" },
+      { name = "COUCHBASE_USERNAME", valueFrom = "${aws_secretsmanager_secret.couchbase.arn}:username::" },
+      { name = "COUCHBASE_PASSWORD", valueFrom = "${aws_secretsmanager_secret.couchbase.arn}:password::" }
     ]
 
     logConfiguration = {

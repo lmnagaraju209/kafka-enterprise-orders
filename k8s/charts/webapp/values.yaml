@@ -5,16 +5,16 @@ backendPort: 8000
 replicaCount: 1
 
 ghcr:
-  enabled: false
+  enabled: true
   username: "aisalkyn85"
-  password: ""
+  password: ""  # set via --set ghcr.password=xxx
 
 ingress:
   host: "orders.jumptotech.net"
   certificateArn: "arn:aws:acm:us-east-2:343218219153:certificate/00353776-9755-4283-98f8-e05c1e337b28"
 
 couchbase:
-  host: "couchbase.your-domain.com"
+  host: "cb.2s2wqp2fpzi0hanx.cloud.couchbase.com"
   bucket: "order_analytics"
-  username: "Administrator"
-  password: ""
+  username: "admin"
+  password: ""  # set via --set couchbase.password=xxx

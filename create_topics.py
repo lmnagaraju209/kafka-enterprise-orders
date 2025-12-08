@@ -4,8 +4,8 @@ import sys
 
 # Confluent Cloud credentials
 BOOTSTRAP_SERVERS = "pkc-921jm.us-east-2.aws.confluent.cloud:9092"
-API_KEY = "CPYU5U7J54M2A5SM"
-API_SECRET = "cfltvSqksT4QfQuUd52s+MJh/WqpAPI4zIZ30AgpIZu+eqwxgh735CYDs1md7Bkw"
+API_KEY = "LUTQDYGP3XTVJE5V"
+API_SECRET = "cfltQUDfj0BQVr3A4KQEJEbfRJkC5Q0RP8h6yphUqcPa99azMYfWB+VogzXfTG1A"
 
 print("Connecting to Confluent Cloud...")
 sys.stdout.flush()

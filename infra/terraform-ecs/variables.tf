@@ -1,5 +1,6 @@
 variable "aws_region" {
-  type = string
+  type    = string
+  default = "us-east-2"
 }
 
 variable "project_name" {
@@ -12,17 +13,19 @@ variable "cluster_name" {
   default = "kafka-enterprise-orders-eks-cluster"
 }
 
-# ghcr
+# GHCR - GitHub Container Registry
 variable "ghcr_username" {
-  type = string
+  type        = string
+  description = "GitHub username for GHCR"
 }
 
 variable "ghcr_pat" {
-  type      = string
-  sensitive = true
+  type        = string
+  sensitive   = true
+  description = "GitHub PAT with read:packages scope (https://github.com/settings/tokens)"
 }
 
-# network
+# Network
 variable "existing_vpc_id" {
   type = string
 }
@@ -47,7 +50,7 @@ variable "existing_rds_sg_id" {
   type = string
 }
 
-# container images
+# Container images
 variable "container_image_producer" {
   type = string
 }
@@ -72,25 +75,28 @@ variable "container_image_backend" {
   type = string
 }
 
-# confluent cloud
+# Confluent Cloud / Kafka
 variable "confluent_bootstrap_servers" {
-  type = string
+  type        = string
+  description = "Confluent Cloud bootstrap server (e.g., pkc-xxxxx.region.aws.confluent.cloud:9092)"
 }
 
 variable "confluent_api_key" {
-  type      = string
-  sensitive = true
+  type        = string
+  sensitive   = true
+  description = "Confluent Cloud API key"
 }
 
 variable "confluent_api_secret" {
-  type      = string
-  sensitive = true
+  type        = string
+  sensitive   = true
+  description = "Confluent Cloud API secret"
 }
 
-# couchbase
+# Couchbase Capella
 variable "couchbase_host" {
-  type    = string
-  default = ""
+  type        = string
+  description = "Couchbase Capella host (e.g., cb.xxxxx.cloud.couchbase.com)"
 }
 
 variable "couchbase_bucket" {
@@ -100,11 +106,11 @@ variable "couchbase_bucket" {
 
 variable "couchbase_username" {
   type    = string
-  default = "Administrator"
+  default = "admin"
 }
 
 variable "couchbase_password" {
-  type      = string
-  sensitive = true
-  default   = ""
+  type        = string
+  sensitive   = true
+  description = "Couchbase database password"
 }
