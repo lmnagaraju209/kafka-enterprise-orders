@@ -1,71 +1,77 @@
-# EKS Deployment Guide
+# EKS Fixes
 
-Quick guide for deploying the webapp to EKS.
+## what broke
 
-## What we fixed
+1. **images not pulling** - wrong paths + no ghcr secret
+2. **404 on ALB** - ingress only had host rule, no default
+3. **502 on backend** - service pointed to 80, fastapi runs on 8000
+4. **no https** - added ACM cert
 
-Had a few issues getting this running on EKS:
+## deploy
 
-1. **Images not pulling** - The image paths were wrong and we didn't have a pull secret for GHCR. Fixed the paths and added secret creation to the pipeline.
+push to main, pipeline does the rest.
 
-2. **404 on the ALB URL** - Ingress was only set up for the custom domain, not for direct ALB access. Added a default rule.
+### github secrets needed
 
-3. **Backend returning 502** - Service was pointing to port 80 but FastAPI runs on 8000. Updated the service.
+```
+AWS_ACCESS_KEY_ID
+AWS_SECRET_ACCESS_KEY
+GHCR_PAT
+COUCHBASE_HOST
+COUCHBASE_BUCKET
+COUCHBASE_USERNAME
+COUCHBASE_PASSWORD
+```
 
-## Deploying
-
-The pipeline handles everything. Just push to main and it'll:
-- Build the images
-- Push to GHCR  
-- Create the secrets in k8s
-- Deploy with helm
-
-### Secrets you need in GitHub
-
-Go to repo Settings > Secrets > Actions and add:
-
-- `AWS_ACCESS_KEY_ID`
-- `AWS_SECRET_ACCESS_KEY`
-- `GHCR_PAT` - your GitHub personal access token
-- `COUCHBASE_HOST`
-- `COUCHBASE_BUCKET`
-- `COUCHBASE_USERNAME`
-- `COUCHBASE_PASSWORD`
-
-## Manual deploy (if needed)
+## manual deploy
 
 ```bash
-# connect to eks
 aws eks update-kubeconfig --name keo-eks --region us-east-2
 
-# create the ghcr secret
 kubectl create secret docker-registry ghcr \
   --docker-server=ghcr.io \
   --docker-username=aisalkyn85 \
-  --docker-password=<your-pat>
+  --docker-password=<pat>
 
-# deploy
-helm upgrade --install webapp ./k8s/charts/webapp \
-  --set couchbase.host=<host> \
-  --set couchbase.password=<pass>
+helm upgrade --install webapp ./k8s/charts/webapp
 ```
 
-## Checking if it worked
+## check
 
 ```bash
-# pods should be 2/2 Running
 kubectl get pods
-
-# get the url
 kubectl get ingress
 ```
 
-Then hit the ALB url in your browser.
+## troubleshooting
 
-## If something breaks
+- ImagePullBackOff - check ghcr secret: `kubectl get secret ghcr`
+- 502 errors - check backend logs: `kubectl logs <pod> -c backend`
+- ingress not working - check alb controller: `kubectl get pods -n kube-system | grep load-balancer`
 
-**ImagePullBackOff** - check the ghcr secret exists: `kubectl get secret ghcr`
+---
 
-**502 errors** - check backend logs: `kubectl logs <pod> -c backend`
+## files changed
 
-**Ingress not working** - make sure ALB controller is running: `kubectl get pods -n kube-system | grep load-balancer`
+### new files
+| file | lines | what |
+|------|-------|------|
+| k8s/charts/webapp/templates/_helpers.tpl | 5 | docker config helper |
+| k8s/charts/webapp/templates/ghcr-secret.yaml | 9 | ghcr pull secret |
+| k8s/cert-manager/cluster-issuer.yaml | 31 | lets encrypt issuers |
+| k8s/cert-manager/certificate.yaml | 12 | domain certificate |
+| k8s/cert-manager/README.md | 20 | cert-manager setup |
+| argocd/cert-manager.yaml | 23 | cert-manager argocd app |
+| argocd/cert-manager-config.yaml | 18 | issuers argocd app |
+| docs/SSL-HTTPS-SETUP.md | 104 | ssl guide |
+
+### modified files
+| file | lines | what |
+|------|-------|------|
+| k8s/charts/webapp/values.yaml | 16 | images, cert ARN, ports |
+| k8s/charts/webapp/Chart.yaml | 6 | cleaned up |
+| k8s/charts/webapp/templates/deployment.yaml | 65 | imagePullSecrets, env vars |
+| k8s/charts/webapp/templates/service.yaml | 17 | backend port 8000 |
+| k8s/charts/webapp/templates/ingress.yaml | 88 | HTTPS annotations, default rule |
+| argocd/webapp.yaml | 35 | updated config |
+| .github/workflows/eks-webapp-ci-cd.yml | 66 | secrets creation, deploy steps |
