@@ -1,198 +1,95 @@
-# Real-Time Orders Platform - Architecture
+# Architecture
 
-Event-driven microservices platform for processing orders in real-time using Kafka, Couchbase, and AWS.
+Event-driven order processing with Kafka and Couchbase.
 
-## System Overview
+## How it works
 
 ```
-┌──────────────┐     ┌─────────────────────────────────────────────────────────┐
-│   Frontend   │────▶│                    Backend API                          │
-│   (React)    │     │                    (FastAPI)                            │
-└──────────────┘     └────────────────────────┬────────────────────────────────┘
-                                              │
-                                              ▼
-                                    ┌──────────────────┐
-                                    │    Couchbase     │
-                                    │   (Analytics)    │
-                                    └────────▲─────────┘
-                                             │
-┌──────────────┐                             │
-│   Producer   │                    ┌────────┴─────────┐
-│  (Orders)    │───────────────────▶│                  │
-└──────────────┘                    │  Confluent Kafka │
-                                    │                  │
-         ┌──────────────────────────┤     Topics:      │
-         │                          │  - orders        │
-         │    ┌─────────────────────┤  - payments      │
-         │    │                     │  - fraud-alerts  │
-         │    │    ┌────────────────┤  - order-analytics│
-         │    │    │                │                  │
-         ▼    ▼    ▼                └──────────────────┘
-    ┌────────┬────────┬────────┐
-    │ Fraud  │Payment │Analytics│
-    │Service │Service │Service  │
-    └────────┴────────┴────┬───┘
-                           │
-                           ▼
-                    ┌──────────────┐
-                    │  Couchbase   │
-                    │   Capella    │
-                    └──────────────┘
+┌──────────┐     ┌───────────┐     ┌───────────┐
+│ Frontend │────▶│  Backend  │────▶│ Couchbase │
+└──────────┘     └───────────┘     └─────▲─────┘
+                                         │
+┌──────────┐     ┌───────────┐     ┌─────┴─────┐
+│ Producer │────▶│   Kafka   │────▶│ Analytics │
+└──────────┘     └─────┬─────┘     └───────────┘
+                       │
+          ┌────────────┼────────────┐
+          ▼            ▼            ▼
+     ┌────────┐  ┌─────────┐  ┌──────────┐
+     │ Fraud  │  │ Payment │  │ Analytics│
+     └────────┘  └─────────┘  └──────────┘
 ```
 
-## Data Flow
-
-1. **Producer** generates random orders every 2 seconds
-2. Orders published to `orders` topic in Kafka
-3. Three consumers process events in parallel:
-   - **Fraud Service** - flags suspicious orders (>$300 from risky countries)
-   - **Payment Service** - simulates payment processing
-   - **Analytics Service** - aggregates stats and stores to Couchbase
-4. **Backend API** queries Couchbase for latest analytics
-5. **Frontend** displays real-time dashboard
+Producer generates orders → Kafka distributes → Three services process in parallel → Analytics stores to Couchbase → Backend reads → Frontend displays.
 
 ## Components
 
-### Producer (`producer/`)
-Generates fake orders with random amounts, countries, and statuses.
+**Producer** - Generates random orders every 2 sec. Sends to "orders" topic.
 
-```python
-# Order schema
-{
-    "order_id": 123,
-    "customer_id": 5678,
-    "amount": 249.99,
-    "currency": "USD",
-    "country": "US",
-    "status": "CREATED",
-    "created_at": "2024-01-15T10:30:00Z"
-}
-```
+**Fraud Service** - Reads orders, flags suspicious ones (>$300 from risky countries), sends alerts.
 
-### Consumers (`consumers/`)
+**Payment Service** - Reads orders, simulates processing, marks as PAID.
 
-| Service | Input Topic | Output Topic | Action |
-|---------|-------------|--------------|--------|
-| fraud-service | orders | fraud-alerts | Flags risky transactions |
-| payment-service | orders | payments | Marks orders as PAID |
-| analytics-service | orders | order-analytics | Stores to Couchbase |
+**Analytics Service** - Reads orders, stores to Couchbase for the dashboard.
 
-### Web App (`web/`)
+**Backend** - FastAPI. Queries Couchbase, returns JSON.
 
-- **Frontend**: React dashboard showing orders, total sales, and system status
-- **Backend**: FastAPI with `/api/analytics` endpoint querying Couchbase
+**Frontend** - React dashboard showing orders and stats.
 
 ## Kafka Topics
 
-| Topic | Partitions | Producers | Consumers |
-|-------|------------|-----------|-----------|
-| orders | 6 | producer | fraud, payment, analytics |
-| payments | 6 | payment-service | analytics |
-| fraud-alerts | 6 | fraud-service | (alerting) |
-| order-analytics | 6 | analytics-service | Couchbase sink |
+| Topic | Who writes | Who reads |
+|-------|-----------|-----------|
+| orders | producer | fraud, payment, analytics |
+| payments | payment-service | - |
+| fraud-alerts | fraud-service | - |
+| order-analytics | analytics-service | - |
 
-## Infrastructure
+## Order Schema
 
-### AWS ECS (Production)
-
+```json
+{
+  "order_id": 123,
+  "customer_id": 5678,
+  "amount": 249.99,
+  "currency": "USD",
+  "country": "US",
+  "status": "CREATED",
+  "created_at": "2024-01-15T10:30:00Z"
+}
 ```
-infra/terraform-ecs/
-├── ecs.tf          # ECS services and task definitions
-├── alb.tf          # Application Load Balancer
-├── secrets.tf      # AWS Secrets Manager
-├── vpc.tf          # Networking
-└── variables.tf    # Configuration
-```
-
-Services deployed:
-- `producer-svc` - Order generator
-- `fraud-svc` - Fraud detection
-- `payment-svc` - Payment processing
-- `analytics-svc` - Analytics + Couchbase writer
-- `backend-svc` - API
-- `frontend-svc` - React app
-
-### AWS EKS (Alternative)
-
-```
-k8s/charts/webapp/
-├── templates/
-│   ├── deployment.yaml
-│   ├── service.yaml
-│   └── ingress.yaml
-└── values.yaml
-```
-
-Helm deployment:
-```bash
-helm upgrade webapp k8s/charts/webapp \
-  --set couchbase.password=xxx \
-  --set ghcr.password=xxx
-```
-
-## External Services
-
-### Confluent Cloud (Kafka)
-- Managed Kafka cluster
-- SASL/SSL authentication
-- Auto-scaling partitions
-
-### Couchbase Capella
-- NoSQL document store
-- Real-time analytics queries
-- Free tier available
 
 ## Deployment
 
-### Quick Start (Docker Compose)
+Six ECS services behind an ALB:
+- producer-svc
+- fraud-svc
+- payment-svc
+- analytics-svc
+- backend-svc
+- frontend-svc
+
+Terraform creates everything. Secrets stored in AWS Secrets Manager, injected at runtime.
+
+## External Services
+
+**Confluent Cloud** - Managed Kafka. SASL/SSL auth.
+
+**Couchbase Capella** - NoSQL for analytics. Free tier works.
+
+## Local Dev
+
 ```bash
 docker-compose up -d
 ```
 
-### Production (ECS)
+Runs Kafka, Couchbase, Postgres locally. Then run each service manually or via docker-compose.
+
+## Production
+
 ```bash
 cd infra/terraform-ecs
-terraform init
 terraform apply
-# Terraform prompts for secrets
 ```
 
-### Production (EKS)
-```bash
-helm upgrade webapp k8s/charts/webapp -f values-secrets.yaml
-```
-
-## Secrets
-
-Required credentials:
-
-| Secret | Source | Used By |
-|--------|--------|---------|
-| GHCR PAT | github.com/settings/tokens | ECS/EKS image pulls |
-| Confluent API Key | confluent.cloud | All Kafka services |
-| Couchbase Password | cloud.couchbase.com | Analytics, Backend |
-
-See [SECRETS-SETUP.md](SECRETS-SETUP.md) for configuration.
-
-## Monitoring
-
-- CloudWatch Logs for ECS tasks
-- Couchbase Capella metrics dashboard
-- Confluent Cloud consumer lag monitoring
-
-## Local Development
-
-```bash
-# Start infrastructure
-docker-compose up -d kafka postgres couchbase
-
-# Run producer
-cd producer && python producer.py
-
-# Run consumer
-cd consumers/analytics-service && python analytics_consumer.py
-
-# Run backend
-cd web/backend && uvicorn app:app --reload
-```
-
+Prompts for secrets, creates everything in AWS.
