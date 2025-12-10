@@ -562,6 +562,310 @@ ECS injects these as environment variables. Format: `{arn}:{json_key}::`.
 
 ---
 
+# web/frontend/
+
+React dashboard that displays orders.
+
+## package.json (dependencies)
+
+```json
+{
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  }
+}
+```
+Standard React app, no extra libraries.
+
+## Dockerfile
+
+```dockerfile
+FROM node:20 AS build
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build
+
+FROM nginx:latest
+COPY nginx.conf /etc/nginx/nginx.conf
+COPY --from=build /app/build /usr/share/nginx/html
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
+```
+- Line 1-6: Build stage - install deps, run `npm run build`
+- Line 8-12: Production stage - copy built files to nginx
+
+## src/App.js
+
+```javascript
+import React, { useState, useEffect } from 'react';
+import './App.css';
+```
+
+```javascript
+function App() {
+  const [orders, setOrders] = useState([]);      // array of orders
+  const [loading, setLoading] = useState(true);   // show spinner
+  const [error, setError] = useState(null);       // error message
+  const [lastUpdated, setLastUpdated] = useState(null);
+```
+React state hooks.
+
+```javascript
+  const fetchAnalytics = async () => {
+    try {
+      const response = await fetch('/api/analytics');  // calls backend
+      const data = await response.json();
+      
+      if (data.error) {
+        setError(data.error);
+      } else {
+        setOrders(data.orders || []);
+        setError(null);
+      }
+      setLastUpdated(new Date().toLocaleTimeString());
+    } catch (err) {
+      setError('Failed to fetch data: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+```
+- `fetch('/api/analytics')` - relative URL, nginx proxies to backend
+- Handles both API errors (`data.error`) and network errors (`catch`)
+
+```javascript
+  useEffect(() => {
+    fetchAnalytics();                              // fetch on mount
+    const interval = setInterval(fetchAnalytics, 5000);  // refresh every 5 seconds
+    return () => clearInterval(interval);          // cleanup on unmount
+  }, []);
+```
+Auto-refresh every 5 seconds.
+
+```javascript
+  // Calculate stats from orders array
+  const totalOrders = orders.length;
+  const totalSales = orders.reduce((sum, order) => {
+    const amount = order?.order_analytics?.amount || order?.amount || 0;
+    return sum + parseFloat(amount);
+  }, 0);
+  const avgOrderValue = totalOrders > 0 ? (totalSales / totalOrders).toFixed(2) : 0;
+```
+Client-side aggregation from the orders array.
+
+```javascript
+  return (
+    <div className="dashboard">
+      <header className="header">
+        <h1>Kafka Enterprise Orders</h1>
+        <span className="status-badge">Live</span>
+      </header>
+
+      <section className="stats-section">
+        <div className="stat-card">
+          <span className="stat-label">Total Orders</span>
+          <span className="stat-value">{totalOrders}</span>
+        </div>
+        <div className="stat-card">
+          <span className="stat-label">Total Sales</span>
+          <span className="stat-value">${totalSales.toFixed(2)}</span>
+        </div>
+      </section>
+```
+
+```javascript
+      {orders.map((item, index) => {
+        const order = item?.order_analytics || item;  // handle nested structure
+        return (
+          <tr key={index}>
+            <td>#{order.order_id}</td>
+            <td>{order.customer_id}</td>
+            <td>${parseFloat(order.amount).toFixed(2)}</td>
+            <td>{order.country}</td>
+            <td>{order.status}</td>
+          </tr>
+        );
+      })}
+```
+- Couchbase returns `{order_analytics: {...}}` wrapper
+- Fallback handles both wrapped and unwrapped
+
+## nginx.conf (routing)
+
+```nginx
+location /api/ {
+    proxy_pass http://localhost:8000/;
+}
+
+location / {
+    root /usr/share/nginx/html;
+    try_files $uri /index.html;
+}
+```
+- `/api/*` → backend (port 8000)
+- Everything else → React app (SPA routing)
+
+---
+
+# docker-compose.yml
+
+For local development with all services.
+
+```yaml
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.1
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+```
+Kafka needs Zookeeper for coordination.
+
+```yaml
+  kafka:
+    image: confluentinc/cp-kafka:7.6.1
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+```
+Single-node Kafka broker.
+
+```yaml
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.6.1
+    environment:
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka:9092
+```
+Stores Avro/JSON schemas (optional).
+
+```yaml
+  connect:
+    image: confluentinc/cp-kafka-connect:7.6.1
+    environment:
+      CONNECT_BOOTSTRAP_SERVERS: kafka:9092
+      CONNECT_PLUGIN_PATH: /usr/share/java,/connectors
+    volumes:
+      - ./kafka-connect-jars:/connectors
+```
+Kafka Connect with Couchbase connector loaded.
+
+```yaml
+  couchbase:
+    image: couchbase:community-7.2.0
+    ports:
+      - "8091-8096:8091-8096"
+    volumes:
+      - couchbase_data:/opt/couchbase/var
+```
+Local Couchbase for development.
+
+```yaml
+  order-producer:
+    build: ./producer
+    depends_on:
+      - kafka
+    environment:
+      KAFKA_BOOTSTRAP: kafka:9092
+```
+Producer service (local mode uses plain Kafka, no SSL).
+
+---
+
+# k8s/charts/webapp/
+
+Helm chart for Kubernetes deployment.
+
+## Chart.yaml
+
+```yaml
+apiVersion: v2
+name: webapp
+version: 1.0.0
+```
+Helm chart metadata.
+
+## values.yaml
+
+```yaml
+frontendImage: ghcr.io/username/web-frontend:latest
+backendImage: ghcr.io/username/web-backend:latest
+backendPort: 8000
+
+couchbase:
+  host: cb.xxxxx.cloud.couchbase.com
+  bucket: order_analytics
+  username: admin
+  password: ""   # pass via --set or secrets
+```
+Default values, override with `--set` or `-f values-prod.yaml`.
+
+## templates/deployment.yaml
+
+```yaml
+spec:
+  containers:
+    - name: frontend
+      image: {{ .Values.frontendImage }}
+      ports:
+        - containerPort: 80
+```
+Templated values use `{{ .Values.xxx }}` syntax.
+
+```yaml
+    - name: backend
+      image: {{ .Values.backendImage }}
+      env:
+        - name: COUCHBASE_HOST
+          value: "{{ .Values.couchbase.host }}"
+        - name: COUCHBASE_PASSWORD
+          value: "{{ .Values.couchbase.password }}"
+```
+Environment variables from Helm values.
+
+```yaml
+      readinessProbe:
+        httpGet:
+          path: /healthz
+          port: 8000
+        initialDelaySeconds: 5
+```
+Kubernetes checks `/healthz` before routing traffic.
+
+## templates/service.yaml
+
+```yaml
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 80
+```
+Internal service, exposed via Ingress.
+
+## templates/ingress.yaml
+
+```yaml
+spec:
+  rules:
+    - host: orders.jumptotech.net
+      http:
+        paths:
+          - path: /
+            backend:
+              service:
+                name: webapp
+                port: 80
+```
+Maps domain to service.
+
+---
+
 # Complete Flow
 
 ```
