@@ -1,83 +1,79 @@
 # SSL/HTTPS Setup
 
-How to enable HTTPS on your EKS app.
+How to enable HTTPS for the application.
 
-## Using AWS ACM (what we did)
+---
 
-ACM certs are free and work great with ALB.
+## Option 1: AWS Certificate Manager (ECS/ALB)
 
-### Get a certificate
+### Request Certificate
 
 ```bash
 aws acm request-certificate \
   --domain-name orders.jumptotech.net \
   --validation-method DNS \
-  --key-algorithm RSA_2048 \
   --region us-east-2
 ```
 
-This gives you a certificate ARN - save it.
+### Add DNS Validation Record
 
-### Validate ownership
+ACM provides a CNAME record. Add it to your DNS:
 
-AWS needs to verify you own the domain. Run this to get the validation record:
-
-```bash
-aws acm describe-certificate --certificate-arn <ARN> --region us-east-2 \
-  --query "Certificate.DomainValidationOptions[0].ResourceRecord"
+```
+Name:  _abc123.orders.jumptotech.net
+Type:  CNAME
+Value: _xyz789.acm-validations.aws.
 ```
 
-Add the CNAME record to your DNS. For Route53:
+### Attach to ALB
 
-```bash
-aws route53 change-resource-record-sets --hosted-zone-id <ZONE_ID> \
-  --change-batch file://validation-record.json
-```
+In Terraform (`alb.tf`):
 
-Wait a minute, then check status:
+```hcl
+resource "aws_lb_listener" "https" {
+  load_balancer_arn = aws_lb.main.arn
+  port              = 443
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+  certificate_arn   = "arn:aws:acm:us-east-2:xxx:certificate/xxx"
 
-```bash
-aws acm describe-certificate --certificate-arn <ARN> --region us-east-2 \
-  --query "Certificate.Status"
-```
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.frontend.arn
+  }
+}
 
-Should say `ISSUED`.
+# Redirect HTTP to HTTPS
+resource "aws_lb_listener" "http_redirect" {
+  load_balancer_arn = aws_lb.main.arn
+  port              = 80
+  protocol          = "HTTP"
 
-### Point domain to ALB
-
-Get your ALB hostname:
-```bash
-kubectl get ingress
-```
-
-Then add an A record alias in Route53 pointing your domain to the ALB.
-
-### Update ingress
-
-Add these annotations to your ingress:
-
-```yaml
-annotations:
-  alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
-  alb.ingress.kubernetes.io/ssl-redirect: "443"
-  alb.ingress.kubernetes.io/certificate-arn: <your-cert-arn>
+  default_action {
+    type = "redirect"
+    redirect {
+      port        = "443"
+      protocol    = "HTTPS"
+      status_code = "HTTP_301"
+    }
+  }
+}
 ```
 
 ---
 
-## Using Let's Encrypt (alternative)
-
-If you want auto-renewing certs without ACM.
+## Option 2: cert-manager (EKS/Kubernetes)
 
 ### Install cert-manager
 
 ```bash
-kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.13.3/cert-manager.yaml
+kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.13.0/cert-manager.yaml
 ```
 
-### Create issuer
+### Create ClusterIssuer
 
 ```yaml
+# k8s/cert-manager/cluster-issuer.yaml
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
@@ -85,24 +81,29 @@ metadata:
 spec:
   acme:
     server: https://acme-v02.api.letsencrypt.org/directory
-    email: your-email@domain.com
+    email: your@email.com
     privateKeySecretRef:
-      name: letsencrypt-prod-key
+      name: letsencrypt-prod
     solvers:
       - http01:
           ingress:
             class: nginx
 ```
 
-### Request certificate
+```bash
+kubectl apply -f k8s/cert-manager/cluster-issuer.yaml
+```
+
+### Create Certificate
 
 ```yaml
+# k8s/cert-manager/certificate.yaml
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: orders-tls
+  name: webapp-tls
 spec:
-  secretName: orders-tls-secret
+  secretName: webapp-tls
   issuerRef:
     name: letsencrypt-prod
     kind: ClusterIssuer
@@ -110,37 +111,83 @@ spec:
     - orders.jumptotech.net
 ```
 
-Check status: `kubectl get certificate`
+```bash
+kubectl apply -f k8s/cert-manager/certificate.yaml
+```
+
+### Update Ingress
+
+```yaml
+# k8s/charts/webapp/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: webapp-ingress
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - orders.jumptotech.net
+      secretName: webapp-tls
+  rules:
+    - host: orders.jumptotech.net
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: webapp
+                port:
+                  number: 80
+```
 
 ---
 
-## Why ALB URL shows "Not secure"
+## Verify HTTPS
 
-The ALB URL (`k8s-xxx.elb.amazonaws.com`) will always show a certificate warning because:
-- Your cert is for `orders.jumptotech.net`
-- The ALB URL doesn't match
-- You can't get a cert for `*.elb.amazonaws.com` (AWS owns it)
+```bash
+# Check certificate
+curl -vI https://orders.jumptotech.net
 
-Just use your custom domain for production.
-
----
-
-## Our current setup
-
-- Domain: `orders.jumptotech.net`
-- Cert: `arn:aws:acm:us-east-2:343218219153:certificate/00353776-9755-4283-98f8-e05c1e337b28`
-- ALB: `k8s-default-webappin-d73ba67759-1374685594.us-east-2.elb.amazonaws.com`
-- Route53 zone: `Z0883248KM45SNH4FO6U`
+# Check expiry
+echo | openssl s_client -servername orders.jumptotech.net -connect orders.jumptotech.net:443 2>/dev/null | openssl x509 -noout -dates
+```
 
 ---
 
-## Quick troubleshooting
+## Troubleshooting
 
-**Cert stuck on pending?**
-Check if DNS validation record propagated: `nslookup _xxx.orders.jumptotech.net 8.8.8.8`
+### Certificate Not Issuing
 
-**Ingress not working?**
-Check events: `kubectl describe ingress webapp-ingress`
+```bash
+# Check certificate status
+kubectl describe certificate webapp-tls
 
-**Browser still shows not secure?**
-Clear cache or try incognito. DNS changes take a few minutes.
+# Check cert-manager logs
+kubectl logs -n cert-manager deploy/cert-manager
+
+# Check challenges
+kubectl get challenges
+kubectl describe challenge <challenge-name>
+```
+
+### DNS Not Resolving
+
+```bash
+nslookup orders.jumptotech.net
+dig orders.jumptotech.net
+```
+
+### Mixed Content Errors
+
+Make sure all resources use HTTPS. In React:
+
+```javascript
+// Use relative URLs
+fetch('/api/analytics')  // Good
+fetch('http://...')      // Bad - will fail on HTTPS
+```
+
