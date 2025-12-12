@@ -12,6 +12,58 @@ producer/ → Kafka "orders" topic → consumers/ (3 services) → Couchbase →
 
 ---
 
+## Component Connections
+
+```
+┌──────────────┐         ┌─────────────────┐
+│   Producer   │────────►│  Kafka (9092)   │
+│              │ SASL_SSL│                 │
+└──────────────┘         └────────┬────────┘
+                                  │
+         ┌────────────────────────┼────────────────────────┐
+         ▼                        ▼                        ▼
+   ┌───────────┐           ┌───────────┐           ┌───────────┐
+   │   Fraud   │           │  Payment  │           │ Analytics │
+   │   Group   │           │   Group   │           │   Group   │
+   └───────────┘           └───────────┘           └─────┬─────┘
+                                                         │
+                                                         ▼ TLS :11207
+                                                   ┌───────────┐
+                                                   │ Couchbase │
+                                                   └─────┬─────┘
+                                                         │
+                                                         ▼ N1QL
+                                                   ┌───────────┐
+                                                   │  Backend  │
+                                                   │   :8000   │
+                                                   └─────┬─────┘
+                                                         │
+                                                         ▼ proxy
+                                                   ┌───────────┐
+                                                   │ Frontend  │
+                                                   │    :80    │
+                                                   └─────┬─────┘
+                                                         │
+                                                         ▼ HTTPS
+                                                   ┌───────────┐
+                                                   │   User    │
+                                                   └───────────┘
+```
+
+### Connection Summary
+
+| From | To | Protocol | Port | Code |
+|------|-----|----------|------|------|
+| Producer | Kafka | SASL_SSL | 9092 | `KafkaProducer(security_protocol="SASL_SSL")` |
+| Kafka | Consumers | SASL_SSL | 9092 | `KafkaConsumer(group_id="...")` |
+| Analytics | Couchbase | TLS | 11207 | `couchbases://host` |
+| Backend | Couchbase | TLS | 11207 | `cluster.query("SELECT...")` |
+| Frontend | Backend | HTTP | 8000 | `fetch('/api/analytics')` |
+| nginx | Backend | proxy | 8000 | `proxy_pass http://localhost:8000` |
+| User | ALB | HTTPS | 443 | Browser |
+
+---
+
 # producer/
 
 Generates fake orders and sends to Kafka.

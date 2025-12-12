@@ -1,5 +1,6 @@
 variable "aws_region" {
-  type = string
+  type    = string
+  default = "us-east-2"
 }
 
 variable "cluster_name" {
@@ -13,10 +14,11 @@ variable "vpc_cidr" {
 }
 
 variable "public_subnets" {
-  type = list(string)
+  type    = list(string)
+  default = ["10.20.1.0/24", "10.20.2.0/24"]
 }
 
 variable "private_subnets" {
-  type = list(string)
+  type    = list(string)
+  default = ["10.20.3.0/24", "10.20.4.0/24"]
 }
-

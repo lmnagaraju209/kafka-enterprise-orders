@@ -1,12 +1,12 @@
-frontendImage: "ghcr.io/aisalkyn85/kafka-enterprise-orders/web-frontend:latest"
-backendImage: "ghcr.io/aisalkyn85/kafka-enterprise-orders/web-backend:latest"
+frontendImage: "ghcr.io/lmnagaraju209/kafka-enterprise-orders/web-frontend:latest"
+backendImage: "ghcr.io/lmnagaraju209/kafka-enterprise-orders/web-backend:latest"
 backendPort: 8000
 
 replicaCount: 1
 
 ghcr:
   enabled: true
-  username: "aisalkyn85"
+  username: "lmnagaraju209"
   password: ""  # set via --set ghcr.password=xxx
 
 ingress:

@@ -1,6 +1,16 @@
 # ghcr pull secret
 resource "aws_secretsmanager_secret" "ghcr" {
   name = "${var.project_name}-ghcr-credentials"
+  
+  # Prevent deletion issues - allow immediate recreation if deleted
+  # This avoids the 7-30 day wait period when destroying/recreating
+  # After first import, Terraform manages these - destroy/recreate works smoothly
+  recovery_window_in_days = 0
+  
+  # Prevent unnecessary recreation - only recreate if name actually changes
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 resource "aws_secretsmanager_secret_version" "ghcr" {
@@ -14,6 +24,14 @@ resource "aws_secretsmanager_secret_version" "ghcr" {
 # confluent cloud / kafka
 resource "aws_secretsmanager_secret" "confluent" {
   name = "${var.project_name}-confluent-credentials"
+  
+  # Prevent deletion issues - allow immediate recreation if deleted
+  # After first import, Terraform manages these - destroy/recreate works smoothly
+  recovery_window_in_days = 0
+  
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 resource "aws_secretsmanager_secret_version" "confluent" {
@@ -28,6 +46,14 @@ resource "aws_secretsmanager_secret_version" "confluent" {
 # couchbase
 resource "aws_secretsmanager_secret" "couchbase" {
   name = "${var.project_name}-couchbase-credentials"
+  
+  # Prevent deletion issues - allow immediate recreation if deleted
+  # After first import, Terraform manages these - destroy/recreate works smoothly
+  recovery_window_in_days = 0
+  
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 resource "aws_secretsmanager_secret_version" "couchbase" {

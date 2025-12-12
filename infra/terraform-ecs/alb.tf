@@ -4,6 +4,10 @@ resource "aws_lb" "ecs_alb" {
   load_balancer_type = "application"
   security_groups    = [local.alb_sg]
   subnets            = local.public_subnets
+  
+  # Increase idle timeout to 120 seconds (default is 60)
+  # This prevents 504 errors when backend takes time to connect to Couchbase
+  idle_timeout = 120
 }
 
 # frontend target group
