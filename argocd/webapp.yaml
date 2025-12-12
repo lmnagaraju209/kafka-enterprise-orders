@@ -6,13 +6,13 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: 'https://github.com/lmnagaraju209/kafka-enterprise-orders.git'
+    repoURL: 'https://github.com/Aisalkyn85/kafka-enterprise-orders.git'
     targetRevision: main
     path: k8s/charts/webapp
     helm:
       values: |
-        frontendImage: "ghcr.io/lmnagaraju209/kafka-enterprise-orders/web-frontend:latest"
-        backendImage: "ghcr.io/lmnagaraju209/kafka-enterprise-orders/web-backend:latest"
+        frontendImage: "ghcr.io/aisalkyn85/kafka-enterprise-orders/web-frontend:latest"
+        backendImage: "ghcr.io/aisalkyn85/kafka-enterprise-orders/web-backend:latest"
         backendPort: 8000
         replicaCount: 1
         ghcr:
