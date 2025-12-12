@@ -29,27 +29,61 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: webapp
+                name: {{ .Release.Name }}
                 port:
                   number: {{ .Values.backendPort }}
           - path: /healthz
             pathType: Exact
             backend:
               service:
-                name: webapp
+                name: {{ .Release.Name }}
                 port:
                   number: {{ .Values.backendPort }}
           - path: /docs
             pathType: Prefix
             backend:
               service:
-                name: webapp
+                name: {{ .Release.Name }}
                 port:
                   number: {{ .Values.backendPort }}
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: webapp
+                name: {{ .Release.Name }}
                 port:
                   number: 80
+    # Host-specific rule for domain
+    {{- if .Values.ingress.host }}
+    - host: {{ .Values.ingress.host }}
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}
+                port:
+                  number: {{ .Values.backendPort }}
+          - path: /healthz
+            pathType: Exact
+            backend:
+              service:
+                name: {{ .Release.Name }}
+                port:
+                  number: {{ .Values.backendPort }}
+          - path: /docs
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}
+                port:
+                  number: {{ .Values.backendPort }}
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}
+                port:
+                  number: 80
+    {{- end }}
